@@ -564,16 +564,43 @@
       const rows=[...byStudent.values()];
       return {rows,text:rows.map(x=>`${x.student_name} <${x.student_email}>\n${studentTestLink(x.token)}`).join("\n\n")};
     }
+    async function renderInvitationBox(testId,{toggle=false}={}){
+      const data=await invitationLinks(testId),box=$(`links-${testId}`),labels={
+        ru:{sent:"Отправлено",no:"Не отправлено",send:"Отправить лично",resend:"Отправить повторно"},
+        kk:{sent:"Жіберілді",no:"Жіберілмеді",send:"Жеке жіберу",resend:"Қайта жіберу"},
+        en:{sent:"Sent",no:"Not sent",send:"Send individually",resend:"Send again"},
+        ar:{sent:"تم الإرسال",no:"لم يُرسل",send:"إرسال فردي",resend:"إعادة الإرسال"}
+      }[currentLang];
+      box.innerHTML=data.rows.map(row=>`<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;padding:8px;border-bottom:1px solid #e2e8f0"><span style="min-width:190px;flex:1"><b>${esc(row.student_name)}</b><br><small>${esc(row.student_email)} · <b style="color:${row.sent_at?"#16875f":"#b23a48"}">${row.sent_at?labels.sent:labels.no}</b></small></span><div class="actions" style="margin:0"><button class="btn soft individual-invite-btn" type="button" data-test-id="${testId}" data-invitation-id="${row.id}">✉ ${row.sent_at?labels.resend:labels.send}</button><a class="btn primary" href="${esc(studentTestLink(row.token))}" target="_blank">${L("openTest")}</a></div></div>`).join("");
+      if(toggle)box.hidden=!box.hidden;else box.hidden=false;
+    }
+    async function sendIndividualInvitation(testId,invitationId,button){
+      const test=tests.find(x=>x.id===testId),messages={
+        ru:{missing:"Персональная ссылка студента не найдена.",confirm:n=>`Отправить персональное приглашение студенту «${n}»?`,sending:"Отправка…",done:n=>`Приглашение отправлено: ${n}`},
+        kk:{missing:"Студенттің жеке сілтемесі табылмады.",confirm:n=>`«${n}» студентіне жеке шақыру жіберілсін бе?`,sending:"Жіберілуде…",done:n=>`Шақыру жіберілді: ${n}`},
+        en:{missing:"The student's personal link was not found.",confirm:n=>`Send an individual invitation to “${n}”?`,sending:"Sending…",done:n=>`Invitation sent: ${n}`},
+        ar:{missing:"لم يُعثر على الرابط الشخصي للطالب.",confirm:n=>`هل تريد إرسال دعوة فردية إلى «${n}»؟`,sending:"جارٍ الإرسال…",done:n=>`تم إرسال الدعوة: ${n}`}
+      }[currentLang];
+      const rows=await api(`/rest/v1/test_invitations?select=id,student_id,student_name,student_email,token,sent_at&id=eq.${invitationId}&test_id=eq.${testId}`);
+      const row=rows[0];if(!test||!row)return toast(messages.missing,"error");
+      if(!confirm(messages.confirm(row.student_name)))return;
+      const oldText=button.textContent;button.disabled=true;button.textContent=messages.sending;
+      try{
+        const sent=await sendInvitationRows(test,[row]);
+        if(sent){toast(messages.done(row.student_name));await renderInvitationBox(testId)}
+      }finally{if(button.isConnected){button.disabled=false;button.textContent=oldText}}
+    }
     $("testsList").onclick=async e=>{
       const button=e.target.closest("button");if(!button)return;const id=button.dataset.id;
       try{
+        if(button.classList.contains("individual-invite-btn"))return await sendIndividualInvitation(button.dataset.testId,button.dataset.invitationId,button);
         if(button.classList.contains("edit-btn"))await editTest(id);
         if(button.classList.contains("duplicate-btn"))await duplicateTest(id);
         if(button.classList.contains("preview-btn"))await previewSavedTest(id);
         if(button.classList.contains("print-btn"))await printTest(id);
         if(button.classList.contains("delete-test-btn"))await deleteTest(id);
         if(button.classList.contains("results-btn")){$("resultTestSelect").value=id;showTab("results");await loadResults()}
-        if(button.classList.contains("links-btn")){const data=await invitationLinks(id),box=$(`links-${id}`),labels={ru:{sent:"Отправлено",no:"Не отправлено"},kk:{sent:"Жіберілді",no:"Жіберілмеді"},en:{sent:"Sent",no:"Not sent"},ar:{sent:"تم الإرسال",no:"لم يُرسل"}}[currentLang];box.innerHTML=data.rows.map(row=>`<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;padding:8px;border-bottom:1px solid #e2e8f0"><span>${esc(row.student_name)}<br><small>${esc(row.student_email)} · <b style="color:${row.sent_at?"#16875f":"#b23a48"}">${row.sent_at?labels.sent:labels.no}</b></small></span><a class="btn primary" href="${esc(studentTestLink(row.token))}" target="_blank">${L("openTest")}</a></div>`).join("");box.hidden=!box.hidden}
+        if(button.classList.contains("links-btn"))await renderInvitationBox(id,{toggle:true});
         if(button.classList.contains("copy-btn")){const data=await invitationLinks(id);await navigator.clipboard.writeText(data.text);toast(L("linksCopied"))}
         if(button.classList.contains("add-new-btn"))await addNewStudents(id);
         if(button.classList.contains("mail-btn"))await sendInvitations(id);
@@ -593,7 +620,7 @@
         await new Promise(r=>setTimeout(r,1100));
       }
       toast(`${L("invitationsSent")}: ${sent} ${L("ofWord")} ${rows.length}.`);
-      return true
+      return sent===rows.length
     }
     async function sendInvitations(testId){
       const test=tests.find(x=>x.id===testId),{rows}=await invitationLinks(testId);

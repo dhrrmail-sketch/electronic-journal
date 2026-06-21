@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Прохождение теста</title>
+  <style>
+    :root{--navy:#152b4d;--blue:#3d72f4;--blue2:#eef3ff;--green:#178765;--green2:#e8f8f2;--red:#c84a4a;--ink:#172235;--muted:#6d788a;--line:#e2e8f0;--bg:#f3f6fb}
+    html[data-theme="kk"]{--navy:#12433f;--blue:#16877c;--blue2:#e8f7f4;--green:#08755d;--green2:#e4f6ef;--bg:#f2f8f7}
+    html[data-theme="en"]{--navy:#39245f;--blue:#7650c7;--blue2:#f1ecfb;--green:#5b3fa1;--green2:#eee9f8;--bg:#f7f4fb}
+    html[data-theme="ar"]{--navy:#4a321d;--blue:#a66c22;--blue2:#fbf1e3;--green:#7c6325;--green2:#f7f0df;--bg:#faf7f1}
+    *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 Inter,system-ui,"Segoe UI",sans-serif}button{font:inherit}
+    header{padding:21px;text-align:center;color:#fff;background:var(--navy)}header b{font-size:19px;letter-spacing:.4px}header p{margin:3px 0 0;color:#d3dbea;font-size:12px}
+    main{max-width:850px;margin:22px auto;padding:0 14px}.card{padding:20px;background:#fff;border:1px solid var(--line);border-radius:15px;box-shadow:0 12px 32px rgba(20,35,65,.07)}.card[hidden]{display:none}
+    h1{margin:0 0 5px;font-size:25px}h2{margin:0 0 12px}.meta{display:flex;flex-wrap:wrap;gap:7px;margin:12px 0}.badge{padding:5px 9px;color:#315fc8;background:var(--blue2);border-radius:8px;font-size:12px;font-weight:700}.notice{padding:12px 14px;margin:12px 0;border-radius:10px;background:#fff4da;color:#785719}.notice.ok{background:var(--green2);color:var(--green)}
+    .btn{padding:11px 16px;border:0;border-radius:9px;font-weight:750;cursor:pointer}.primary{color:#fff;background:var(--blue)}.danger{color:#fff;background:var(--red)}.btn:disabled{opacity:.5;cursor:not-allowed}
+    .topline{position:sticky;top:0;z-index:3;display:flex;justify-content:space-between;align-items:center;gap:10px;margin:-20px -20px 15px;padding:12px 20px;background:#fff;border-bottom:1px solid var(--line);border-radius:15px 15px 0 0}.timer{font-size:22px;font-weight:850;color:var(--red)}
+    .question{padding:16px;margin:13px 0;border:1px solid var(--line);border-radius:12px}.question h3{margin:0 0 10px;font-size:16px}.points{color:var(--muted);font-size:12px}.option{display:flex;align-items:flex-start;gap:9px;padding:9px;margin:6px 0;background:#f8fafe;border-radius:9px;cursor:pointer}.option input{margin-top:4px}.option:has(input:checked){background:var(--blue2);outline:1px solid #afc2f4}
+    .submit-row{display:flex;justify-content:flex-end;margin-top:15px}.score{text-align:center;padding:20px}.score strong{display:block;font-size:44px;color:var(--green)}.review{padding:13px;margin:10px 0;border:1px solid var(--line);border-radius:10px}.review.good{border-color:#9ed8c4;background:#f0fbf7}.review.bad{border-color:#edb4b4;background:#fff7f7}.correct{color:var(--green);font-weight:700}.wrong{color:var(--red);font-weight:700}
+    .toast{position:fixed;right:20px;bottom:20px;max-width:430px;padding:12px 16px;color:#fff;background:#172235;border-radius:9px;opacity:0;transform:translateY(50px);transition:.2s;z-index:20}.toast.show{opacity:1;transform:none}.toast.error{background:#a93838}.lang{position:absolute;right:12px;top:12px;padding:7px;border:1px solid #ffffff66;border-radius:8px;color:#fff;background:#ffffff18}.lang option{color:#172235;background:#fff}
+    [dir="rtl"] .lang{right:auto;left:12px}[dir="rtl"] .option{text-align:right}
+    @media(max-width:600px){body{font-size:16px}header{padding:18px 58px 18px 12px}header b{font-size:15px}main{margin:10px auto;padding:0 8px}.card{padding:14px;border-radius:12px}h1{font-size:21px}.topline{margin:-14px -14px 12px;padding:10px 14px}.timer{font-size:20px}.question{padding:13px;margin:10px 0}.option{min-height:48px;padding:11px}.option input{width:20px;height:20px}.submit-row{position:sticky;bottom:0;padding:10px 0;background:linear-gradient(transparent,#fff 25%)}.submit-row .btn,.card>.btn{width:100%;min-height:48px}.toast{left:8px;right:8px;bottom:8px;max-width:none}}
+  </style>
+</head>
+<body>
+  <header><select class="lang" id="languageSelect"><option value="kk">ҚАЗ</option><option value="ru">РУС</option><option value="en">ENG</option><option value="ar">عربي</option></select><b id="basmala">БИСМИЛЛАХИР-РАХМАНИР-РАХИМ</b><p id="headerSubtitle">Электронный тест • Еркін ұстаз</p></header>
+  <main>
+    <section class="card" id="landing">
+      <h1 id="title">Загрузка теста…</h1><p id="topic"></p>
+      <div class="meta"><span class="badge" id="student"></span><span class="badge" id="duration"></span><span class="badge" id="deadline"></span><span class="badge" id="attempts"></span></div>
+      <div class="notice" id="status"></div><p id="instructions"></p>
+      <button class="btn primary" id="startBtn" disabled>Начать тест</button>
+    </section>
+    <section class="card" id="testCard" hidden>
+      <div class="topline"><div><b id="testTitle"></b><div class="points" id="attemptLabel"></div></div><div class="timer" id="timer">00:00</div></div>
+      <form id="testForm"><div id="questions"></div><div class="submit-row"><button class="btn danger" id="submitBtn" type="submit">Отправить тест</button></div></form>
+    </section>
+    <section class="card" id="resultCard" hidden><div class="score"><h2 id="resultHeading">Ваш результат</h2><strong id="score"></strong><p id="scoreDetail"></p></div><div id="review"></div></section>
+  </main>
+  <div class="toast" id="toast"></div>
+  <script src="./test-shared.js"></script>
+  <script>
+    const {$,api,toast,formatDateTime,normalizeAnswers,cloudReady,LANG_KEY,testLinkData}=TestBeta;
+    const linkData=testLinkData(),token=linkData.token;let info=null,attempt=null,timerHandle=null,currentLang=linkData.lang||localStorage.getItem(LANG_KEY)||"ru";
+    const TXT={
+      ru:{subtitle:"Электронный тест • Еркін ұстаз",loading:"Загрузка теста…",start:"Начать тест",submit:"Отправить тест",result:"Ваш результат",minutes:"минут",until:"до",attempts:"попыток",draft:"Тест пока не опубликован.",opens:"Тест откроется",expired:"Срок прохождения теста истёк.",used:"Все попытки использованы.",ready:"Когда будете готовы, нажмите «Начать тест». После этого запустится таймер.",noToken:"В ссылке отсутствует персональный код.",noCloud:"В этой копии приложения не настроено облачное подключение.",unavailable:"Тест недоступен",confirmStart:"Начать тест? Таймер запустится сразу.",attempt:"Попытка",points:"балл.",timeOver:"Время истекло. Ответы больше не принимаются.",unanswered:"Не отвечено вопросов",sendAnyway:"Всё равно отправить тест?",confirmSend:"Отправить тест? После отправки ответы изменить нельзя.",of:"из",review:"Разбор ответов",right:"Верно",wrong:"Неверно",your:"Ваш ответ",none:"нет",correct:"Правильный ответ",later:"Правильные ответы будут доступны после дедлайна, если преподаватель разрешил их показ.",explanation:"Пояснение"},
+      kk:{subtitle:"Электрондық тест • Еркін ұстаз",loading:"Тест жүктелуде…",start:"Тестті бастау",submit:"Тестті жіберу",result:"Сіздің нәтижеңіз",minutes:"минут",until:"дейін",attempts:"әрекет",draft:"Тест әлі жарияланбаған.",opens:"Тест ашылады:",expired:"Тест тапсыру мерзімі аяқталды.",used:"Барлық әрекет пайдаланылды.",ready:"Дайын болғанда «Тестті бастау» түймесін басыңыз. Содан кейін таймер іске қосылады.",noToken:"Сілтемеде жеке код жоқ.",noCloud:"Бұл қолданбада бұлттық байланыс бапталмаған.",unavailable:"Тест қолжетімсіз",confirmStart:"Тестті бастайсыз ба? Таймер бірден іске қосылады.",attempt:"Әрекет",points:"балл",timeOver:"Уақыт аяқталды. Жауаптар енді қабылданбайды.",unanswered:"Жауап берілмеген сұрақтар",sendAnyway:"Тестті бәрібір жіберу керек пе?",confirmSend:"Тестті жіберу керек пе? Жібергеннен кейін жауаптарды өзгертуге болмайды.",of:"ішінен",review:"Жауаптарды талдау",right:"Дұрыс",wrong:"Қате",your:"Сіздің жауабыңыз",none:"жоқ",correct:"Дұрыс жауап",later:"Оқытушы рұқсат етсе, дұрыс жауаптар соңғы мерзімнен кейін көрсетіледі.",explanation:"Түсіндірме"},
+      en:{subtitle:"Online test • Teacher Erkin",loading:"Loading test…",start:"Start test",submit:"Submit test",result:"Your result",minutes:"minutes",until:"until",attempts:"attempts",draft:"The test has not been published yet.",opens:"The test opens",expired:"The test deadline has passed.",used:"All attempts have been used.",ready:"When you are ready, click “Start test”. The timer will begin immediately.",noToken:"The personal code is missing from the link.",noCloud:"Cloud connection is not configured in this copy.",unavailable:"Test unavailable",confirmStart:"Start the test? The timer will begin immediately.",attempt:"Attempt",points:"points",timeOver:"Time is over. Answers are no longer accepted.",unanswered:"Unanswered questions",sendAnyway:"Submit anyway?",confirmSend:"Submit the test? Answers cannot be changed afterwards.",of:"of",review:"Answer review",right:"Correct",wrong:"Incorrect",your:"Your answer",none:"none",correct:"Correct answer",later:"Correct answers will be available after the deadline if the teacher allows them.",explanation:"Explanation"},
+      ar:{subtitle:"اختبار إلكتروني • الأستاذ إركين",loading:"جارٍ تحميل الاختبار…",start:"بدء الاختبار",submit:"إرسال الاختبار",result:"نتيجتك",minutes:"دقيقة",until:"حتى",attempts:"المحاولات",draft:"لم يُنشر الاختبار بعد.",opens:"يُفتح الاختبار في",expired:"انتهى موعد الاختبار.",used:"استُخدمت جميع المحاولات.",ready:"عندما تكون مستعداً اضغط «بدء الاختبار». سيبدأ المؤقت فوراً.",noToken:"الرمز الشخصي غير موجود في الرابط.",noCloud:"الاتصال السحابي غير مضبوط في هذه النسخة.",unavailable:"الاختبار غير متاح",confirmStart:"هل تريد بدء الاختبار؟ سيبدأ المؤقت فوراً.",attempt:"المحاولة",points:"درجة",timeOver:"انتهى الوقت. لم يعد قبول الإجابات متاحاً.",unanswered:"الأسئلة دون إجابة",sendAnyway:"هل تريد الإرسال رغم ذلك؟",confirmSend:"هل تريد إرسال الاختبار؟ لا يمكن تعديل الإجابات بعد الإرسال.",of:"من",review:"مراجعة الإجابات",right:"صحيح",wrong:"خطأ",your:"إجابتك",none:"لا توجد",correct:"الإجابة الصحيحة",later:"ستظهر الإجابات الصحيحة بعد الموعد النهائي إذا سمح الأستاذ بذلك.",explanation:"الشرح"}
+    };
+    const T=k=>TXT[currentLang]?.[k]||TXT.ru[k]||k;
+    function applyLang(){currentLang=TXT[currentLang]?currentLang:"ru";localStorage.setItem(LANG_KEY,currentLang);$("languageSelect").value=currentLang;document.documentElement.lang=currentLang;document.documentElement.dir=currentLang==="ar"?"rtl":"ltr";document.documentElement.dataset.theme=currentLang;$("headerSubtitle").textContent=T("subtitle");$("title").textContent=T("loading");$("startBtn").textContent=T("start");$("submitBtn").textContent=T("submit");$("resultHeading").textContent=T("result")}
+    $("languageSelect").onchange=e=>{currentLang=e.target.value;applyLang();if(info)loadInfo()};
+    async function rpc(name,body){return api(`/rest/v1/rpc/${name}`,{method:"POST",body:JSON.stringify(body)},false)}
+    async function loadInfo(){
+      if(!token)return fail(T("noToken"));
+      if(!cloudReady())return fail(T("noCloud"));
+      try{
+        const previous=await rpc("get_test_result",{p_token:token});
+        if(previous){showResult(previous);return}
+        info=await rpc("test_invitation_info",{p_token:token});
+        $("title").textContent=info.title;$("topic").textContent=info.topic||"";$("student").textContent=info.student_name;$("duration").textContent=`${info.duration_minutes} ${T("minutes")}`;$("deadline").textContent=`${T("until")} ${formatDateTime(info.deadline_at)}`;$("attempts").textContent=`${T("attempts")}: ${info.attempts_used}/${info.max_attempts}`;$("instructions").textContent=info.instructions||"";
+        const now=Date.now(),opens=Date.parse(info.opens_at),deadline=Date.parse(info.deadline_at);let message="";
+        if(info.status!=="published")message=T("draft");else if(now<opens)message=`${T("opens")} ${formatDateTime(info.opens_at)}.`;else if(now>deadline)message=T("expired");else if(info.attempts_used>=info.max_attempts)message=T("used");else{$("startBtn").disabled=false;message=T("ready")}
+        $("status").textContent=message;
+      }catch(err){fail(err.message)}
+    }
+    function fail(text){$("title").textContent=T("unavailable");$("status").textContent=text;$("startBtn").disabled=true;toast(text,"error")}
+    $("startBtn").onclick=async()=>{
+      if(!confirm(`${T("confirmStart")} ${info.duration_minutes} ${T("minutes")}.`))return;
+      $("startBtn").disabled=true;
+      try{attempt=await rpc("start_test_attempt",{p_token:token});renderAttempt()}catch(err){fail(err.message)}
+    };
+    function renderAttempt(){
+      $("landing").hidden=true;$("testCard").hidden=false;$("testTitle").textContent=attempt.title;$("attemptLabel").textContent=`${T("attempt")} ${attempt.attempt_no}`;
+      $("questions").innerHTML=attempt.questions.map((q,i)=>`<article class="question" data-id="${q.id}"><h3>${i+1}. ${escapeHtml(q.text)} <span class="points">(${q.points} ${T("points")})</span></h3>${Object.entries(q.options).map(([key,value])=>`<label class="option"><input type="${q.type==="MULTIPLE"?"checkbox":"radio"}" name="q-${q.id}" value="${key}"><span><b>${key}.</b> ${escapeHtml(value)}</span></label>`).join("")}</article>`).join("");
+      tick();timerHandle=setInterval(tick,1000);
+    }
+    function escapeHtml(value=""){return String(value).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[c]))}
+    function tick(){
+      const left=Math.max(0,Date.parse(attempt.expires_at)-Date.now()),seconds=Math.ceil(left/1000),m=String(Math.floor(seconds/60)).padStart(2,"0"),s=String(seconds%60).padStart(2,"0");$("timer").textContent=`${m}:${s}`;
+      if(left<=0){clearInterval(timerHandle);$("testForm").querySelector("button").disabled=true;toast(T("timeOver"),"error")}
+    }
+    $("testForm").onsubmit=async event=>{
+      event.preventDefault();const answers={};
+      attempt.questions.forEach(q=>{answers[q.id]=normalizeAnswers([...document.querySelectorAll(`[name="q-${q.id}"]:checked`)].map(x=>x.value))});
+      const unanswered=attempt.questions.filter(q=>!answers[q.id].length).length;
+      if(unanswered&&!confirm(`${T("unanswered")}: ${unanswered}. ${T("sendAnyway")}`))return;
+      if(!confirm(T("confirmSend")))return;
+      const button=event.submitter;button.disabled=true;
+      try{const result=await rpc("submit_test_attempt",{p_token:token,p_attempt_id:attempt.attempt_id,p_answers:answers});clearInterval(timerHandle);showResult(result)}catch(err){button.disabled=false;toast(err.message,"error")}
+    };
+    function showResult(result){
+      $("landing").hidden=true;$("testCard").hidden=true;$("resultCard").hidden=false;$("resultHeading").textContent=T("result");$("score").textContent=`${result.percent}%`;$("scoreDetail").textContent=`${result.score} ${T("of")} ${result.max_score}`;
+      if(result.reveal&&result.review?.length){$("review").innerHTML=`<h2>${T("review")}</h2>`+result.review.map((r,i)=>{const good=JSON.stringify(normalizeAnswers(r.selected))===JSON.stringify(normalizeAnswers(r.correct));return `<article class="review ${good?"good":"bad"}"><b>${i+1}. ${escapeHtml(r.text)}</b><p class="${good?"correct":"wrong"}">${good?T("right"):T("wrong")} · ${T("your")}: ${escapeHtml((r.selected||[]).join(", ")||T("none"))}</p><p>${T("correct")}: <b>${escapeHtml((r.correct||[]).join(", "))}</b></p>${!good&&r.explanation?`<p><b>${T("explanation")}:</b> ${escapeHtml(r.explanation)}</p>`:""}</article>`}).join("")}else $("review").innerHTML=`<div class="notice">${T("later")}</div>`;
+    }
+    applyLang();loadInfo();
+  </script>
+</body>
+</html>

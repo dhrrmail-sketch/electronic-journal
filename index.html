@@ -370,7 +370,7 @@ Content: {{message}}</span>
   <div class="toast" id="toast"></div>
 
   <script>
-    const APP_VERSION="2.0.0-beta.22",FINAL_MAX=100,STORAGE_KEY="teacher-journal-v2",DEFAULT_GROUP="group-default";
+    const APP_VERSION="2.0.0-beta.24",FINAL_MAX=100,STORAGE_KEY="teacher-journal-v2",DEFAULT_GROUP="group-default";
     const CLOUD_CONFIG_KEY="teacher-journal-cloud-config-v1",CLOUD_SESSION_KEY="teacher-journal-cloud-session-v1",LOCAL_UPDATED_KEY="teacher-journal-local-updated-v1",LAST_SYNC_KEY="teacher-journal-last-sync-v1";
     const now=new Date(),localToday=new Date(now-now.getTimezoneOffset()*60000).toISOString().slice(0,10);
     const seed={meta:{subject:""},criteria:[{id:"section",name:"Секционный ответ",max:40},{id:"individual",name:"Индивидуальный ответ",max:30},{id:"srs",name:"СРС",max:100},{id:"srsp",name:"СРСП",max:100}],groups:[{id:DEFAULT_GROUP,name:"Основная группа",course:""}],selectedGroupId:DEFAULT_GROUP,students:[

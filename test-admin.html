@@ -525,15 +525,19 @@
     async function loadTests(){
       if(!cloudReady()||!cloudSession()?.user)return;
       tests=await api("/rest/v1/tests?select=*&order=created_at.desc");
+      const currentStudents=journalStudents().students;
       await Promise.all(tests.map(async test=>{
         try{
           const [invitations,qRows]=await Promise.all([
-            api(`/rest/v1/test_invitations?select=id,test_attempts(status,score,max_score)&test_id=eq.${test.id}`),
+            api(`/rest/v1/test_invitations?select=id,student_id,test_attempts(status,score,max_score)&test_id=eq.${test.id}`),
             api(`/rest/v1/test_questions?select=id&test_id=eq.${test.id}`)
           ]);
-          const submitted=invitations.filter(inv=>(inv.test_attempts||[]).some(a=>a.status==="submitted"));
-          const percents=submitted.map(inv=>Math.max(...inv.test_attempts.filter(a=>a.status==="submitted"&&a.max_score>0).map(a=>Number(a.score)/Number(a.max_score)*100),0));
-          test._stats={assigned:invitations.length,submitted:submitted.length,notStarted:invitations.filter(inv=>!(inv.test_attempts||[]).length).length,average:percents.length?Math.round(percents.reduce((a,b)=>a+b,0)/percents.length*10)/10:0,questions:qRows.length};
+          const rosterIds=new Set(currentStudents.filter(s=>!test.assigned_group_id||s.groupId===test.assigned_group_id).map(s=>String(s.id)));
+          const byStudent=new Map();
+          invitations.forEach(inv=>{const id=String(inv.student_id||"");if(!id||!rosterIds.has(id))return;const entry=byStudent.get(id)||{attempts:[]};entry.attempts.push(...(inv.test_attempts||[]));byStudent.set(id,entry)});
+          const assigned=[...byStudent.values()],submitted=assigned.filter(inv=>inv.attempts.some(a=>a.status==="submitted"));
+          const percents=submitted.map(inv=>Math.max(...inv.attempts.filter(a=>a.status==="submitted"&&a.max_score>0).map(a=>Number(a.score)/Number(a.max_score)*100),0));
+          test._stats={assigned:assigned.length,submitted:submitted.length,notStarted:assigned.filter(inv=>!inv.attempts.length).length,average:percents.length?Math.round(percents.reduce((a,b)=>a+b,0)/percents.length*10)/10:0,questions:qRows.length};
         }catch{test._stats={assigned:0,submitted:0,notStarted:0,average:0,questions:0}}
       }));
       $("resultTestSelect").innerHTML=tests.map(t=>`<option value="${t.id}">${esc(t.title)}</option>`).join("");
@@ -541,7 +545,10 @@
       $("testsList").innerHTML=tests.length?tests.map(t=>{const s=t._stats||{};return `<article class="test-card"><h3>${esc(t.title)} <span class="badge ${t.status==="published"?"ok":""}">${L(t.status)||t.status}</span></h3><div class="test-meta">${esc(t.topic||"—")} · ${t.duration_minutes} ${L("minutes")} · ${formatDateTime(t.deadline_at)}</div><div class="test-details"><span class="info-chip">📚 ${esc(t.assigned_subject_name||"—")}</span><span class="info-chip">📘 ${L("seminar")}: ${esc(t.seminar_number||"—")}</span><span class="info-chip">🎓 ${L("course")}: ${esc(t.assigned_course||"—")}</span><span class="info-chip">👥 ${L("group")}: ${esc(t.assigned_group_name||"—")}</span></div><div class="test-stats"><span class="stat-chip">${L("questionsCount")}: ${s.questions||0}</span><span class="stat-chip">${L("assigned")}: ${s.assigned||0}</span><span class="stat-chip">${L("submitted")}: ${s.submitted||0}</span><span class="stat-chip">${L("notStarted")}: ${s.notStarted||0}</span><span class="stat-chip">${L("average")}: ${s.average||0}%</span></div><div class="actions"><button class="btn primary edit-btn" data-id="${t.id}">${L("edit")}</button><button class="btn soft duplicate-btn" data-id="${t.id}">${L("duplicate")}</button><button class="btn soft preview-btn" data-id="${t.id}">${L("preview")}</button><button class="btn soft print-btn" data-id="${t.id}">${L("print")}</button><button class="btn soft links-btn" data-id="${t.id}">${L("links")}</button><button class="btn soft copy-btn" data-id="${t.id}">${L("copy")}</button><button class="btn primary add-new-btn" data-id="${t.id}">＋ ${newStudentLabel}</button><button class="btn soft mail-btn" data-id="${t.id}">${repeatLabel}</button><button class="btn ghost results-btn" data-id="${t.id}">${L("result")}</button><button class="btn danger delete-test-btn" data-id="${t.id}">${L("delete")}</button></div><div class="links" id="links-${t.id}" hidden></div></article>`}).join(""):`<p class="help">—</p>`;
     }
     async function invitationLinks(testId){
-      const rows=await api(`/rest/v1/test_invitations?select=id,student_name,student_email,token,sent_at&test_id=eq.${testId}&order=student_name`);
+      const test=tests.find(t=>t.id===testId),rosterIds=new Set(journalStudents().students.filter(s=>!test?.assigned_group_id||s.groupId===test.assigned_group_id).map(s=>String(s.id)));
+      const allRows=await api(`/rest/v1/test_invitations?select=id,student_id,student_name,student_email,token,sent_at&test_id=eq.${testId}&order=student_name`),byStudent=new Map();
+      allRows.forEach(row=>{const id=String(row.student_id||"");if(id&&rosterIds.has(id)&&!byStudent.has(id))byStudent.set(id,row)});
+      const rows=[...byStudent.values()];
       return {rows,text:rows.map(x=>`${x.student_name} <${x.student_email}>\n${studentTestLink(x.token)}`).join("\n\n")};
     }
     $("testsList").onclick=async e=>{
@@ -623,7 +630,9 @@
       const testId=$("resultTestSelect").value;if(!testId)return;
       const invitations=await api(`/rest/v1/test_invitations?select=id,student_name,student_email,student_id,token,test_attempts(*)&test_id=eq.${testId}&order=student_name`);
       const test=tests.find(t=>t.id===testId),deadlinePassed=test&&Date.now()>Date.parse(test.deadline_at);
-      currentResults=invitations.map(inv=>{const attempts=(inv.test_attempts||[]).sort((a,b)=>Date.parse(b.started_at)-Date.parse(a.started_at)),best=attempts.filter(a=>a.status==="submitted").sort((a,b)=>(b.score/b.max_score)-(a.score/a.max_score))[0],latest=best||attempts[0]||null;return {...(latest||{}),invitation:{student_name:inv.student_name,student_email:inv.student_email,student_id:inv.student_id,token:inv.token},not_started:!latest,deadline_zero:deadlinePassed&&(!latest||latest.status!=="submitted")}});
+      const rosterIds=new Set(journalStudents().students.filter(s=>!test.assigned_group_id||s.groupId===test.assigned_group_id).map(s=>String(s.id))),byStudent=new Map();
+      invitations.forEach(inv=>{const id=String(inv.student_id||"");if(!id||!rosterIds.has(id))return;const entry=byStudent.get(id)||{...inv,test_attempts:[]};entry.test_attempts.push(...(inv.test_attempts||[]));byStudent.set(id,entry)});
+      currentResults=[...byStudent.values()].map(inv=>{const attempts=(inv.test_attempts||[]).sort((a,b)=>Date.parse(b.started_at)-Date.parse(a.started_at)),best=attempts.filter(a=>a.status==="submitted").sort((a,b)=>(b.score/b.max_score)-(a.score/a.max_score))[0],latest=best||attempts[0]||null;return {...(latest||{}),invitation:{student_name:inv.student_name,student_email:inv.student_email,student_id:inv.student_id,token:inv.token},not_started:!latest,deadline_zero:deadlinePassed&&(!latest||latest.status!=="submitted")}});
       const submitted=currentResults.filter(r=>r.status==="submitted"),scores=submitted.filter(r=>r.max_score>0).map(r=>Number(r.score)/Number(r.max_score)*100);
       $("resultContext").innerHTML=`<span class="info-chip">📚 ${esc(test.assigned_subject_name||"—")}</span><span class="info-chip">📘 ${L("seminar")}: ${esc(test.seminar_number||"—")} — ${esc(test.topic||"—")}</span><span class="info-chip">🎓 ${L("course")}: ${esc(test.assigned_course||"—")}</span><span class="info-chip">👥 ${L("group")}: ${esc(test.assigned_group_name||"—")}</span><span class="info-chip">⏳ ${formatDateTime(test.deadline_at)}</span>`;
       $("resultSummary").innerHTML=`<span class="stat-chip">${L("assigned")}: ${currentResults.length}</span><span class="stat-chip">${L("submitted")}: ${submitted.length}</span><span class="stat-chip">${L("notStarted")}: ${currentResults.filter(r=>r.not_started).length}</span><span class="stat-chip">${L("average")}: ${scores.length?Math.round(scores.reduce((a,b)=>a+b,0)/scores.length*10)/10:0}%</span>`;

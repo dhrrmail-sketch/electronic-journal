@@ -174,6 +174,12 @@
       const response=await fetch("https://api.emailjs.com/api/v1.0/email/send",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({service_id:config.serviceId,template_id:config.testTemplateId,user_id:config.publicKey,template_params:{to_email:toEmail,to_name:toName,subject,message,message_html:messageHtml,...values}})});
       if(!response.ok)throw new Error(await response.text());
     }
+    function markJournalTestMailStatus(test,studentId,status){
+      if(!test?.journal_date||!studentId)return;
+      const journal=readJson(JOURNAL_STORAGE_KEY,{});journal.grades||={};journal.grades[test.journal_date]||={};journal.grades[test.journal_date][studentId]||={};
+      journal.grades[test.journal_date][studentId].mailStatus=status;
+      localStorage.setItem(JOURNAL_STORAGE_KEY,JSON.stringify(journal));localStorage.setItem("teacher-journal-local-updated-v1",new Date().toISOString())
+    }
     async function sendStudentTestEmail(config,recipient,subject,message,messageHtml,values){
       await postTestEmail(config,recipient.email,recipient.name,subject,message,messageHtml,values);
     }
@@ -587,7 +593,7 @@
         if(button.classList.contains("print-btn"))await printTest(id);
         if(button.classList.contains("delete-test-btn"))await deleteTest(id);
         if(button.classList.contains("results-btn")){$("resultTestSelect").value=id;showTab("results");await loadResults()}
-        if(button.classList.contains("links-btn")){const data=await invitationLinks(id),box=$(`links-${id}`);box.innerHTML=data.rows.map(row=>`<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;padding:8px;border-bottom:1px solid #e2e8f0"><span>${esc(row.student_name)}<br><small>${esc(row.student_email)}</small></span><a class="btn primary" href="${esc(studentTestLink(row.token))}" target="_blank">${L("openTest")}</a></div>`).join("");box.hidden=!box.hidden}
+        if(button.classList.contains("links-btn")){const data=await invitationLinks(id),box=$(`links-${id}`),labels={ru:{sent:"Отправлено",no:"Не отправлено"},kk:{sent:"Жіберілді",no:"Жіберілмеді"},en:{sent:"Sent",no:"Not sent"},ar:{sent:"تم الإرسال",no:"لم يُرسل"}}[currentLang];box.innerHTML=data.rows.map(row=>`<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;padding:8px;border-bottom:1px solid #e2e8f0"><span>${esc(row.student_name)}<br><small>${esc(row.student_email)} · <b style="color:${row.sent_at?"#16875f":"#b23a48"}">${row.sent_at?labels.sent:labels.no}</b></small></span><a class="btn primary" href="${esc(studentTestLink(row.token))}" target="_blank">${L("openTest")}</a></div>`).join("");box.hidden=!box.hidden}
         if(button.classList.contains("copy-btn")){const data=await invitationLinks(id);await navigator.clipboard.writeText(data.text);toast(L("linksCopied"))}
         if(button.classList.contains("add-new-btn"))await addNewStudents(id);
         if(button.classList.contains("mail-btn"))await sendInvitations(id);
@@ -602,12 +608,13 @@
       let sent=0;const sentRows=[],failedRows=[];
       for(const row of rows){
         const link=studentTestLink(row.token),template=testMailTemplates[currentLang]?.invitation||DEFAULT_TEST_MAILS[currentLang].invitation,values={student_name:row.student_name,test_title:test.title,subject_name:test.assigned_subject_name||"—",seminar_number:test.seminar_number||"—",seminar_topic:test.topic||"—",group_name:test.assigned_group_name||"—",course:test.assigned_course||"—",deadline:formatDateTime(test.deadline_at),duration:test.duration_minutes,test_link:link,button_text:L("openTest")},htmlValues=Object.fromEntries(Object.entries(values).map(([key,value])=>[key,esc(value)])),subject=fillMailTemplate(template.subject,values),message=invitationPlainText(template.text,values),messageHtml=normalizeTestEmailFont(`${fillMailTemplate(template.html,htmlValues)}${invitationFallback(link)}`);
-        try{await sendStudentTestEmail(config,{email:row.student_email,name:row.student_name},subject,message,messageHtml,values);sent++;sentRows.push({name:row.student_name,email:row.student_email});if(row.id)try{await api(`/rest/v1/test_invitations?id=eq.${row.id}`,{method:"PATCH",headers:{Prefer:"return=minimal"},body:JSON.stringify({sent_at:new Date().toISOString()})})}catch{}}
-        catch(error){failedRows.push({name:row.student_name,email:row.student_email,error:String(error?.message||error)})}
+        try{await sendStudentTestEmail(config,{email:row.student_email,name:row.student_name},subject,message,messageHtml,values);sent++;sentRows.push({name:row.student_name,email:row.student_email});markJournalTestMailStatus(test,String(row.student_id||""),"sent");if(row.id)try{await api(`/rest/v1/test_invitations?id=eq.${row.id}`,{method:"PATCH",headers:{Prefer:"return=minimal"},body:JSON.stringify({sent_at:new Date().toISOString()})})}catch(error){console.error("Invitation sent_at",error)}}
+        catch(error){markJournalTestMailStatus(test,String(row.student_id||""),"not_sent");failedRows.push({name:row.student_name,email:row.student_email,error:String(error?.message||error)})}
         await new Promise(r=>setTimeout(r,1100));
       }
-      try{await sendTeacherDeliverySummary(config,test,"invitation",sentRows,failedRows)}catch(error){console.error("Teacher delivery summary",error)}
-      toast(`${L("invitationsSent")}: ${sent} ${L("ofWord")} ${rows.length}`);
+      let reportSent=false,reportError="";try{await sendTeacherDeliverySummary(config,test,"invitation",sentRows,failedRows);reportSent=config.teacherCopyEnabled!==false&&Boolean(config.teacherCopyEmail)}catch(error){reportError=String(error?.message||error);console.error("Teacher delivery summary",error)}
+      const reportText=reportError?{ru:` Отчёт преподавателю не отправлен: ${reportError}`,kk:` Оқытушы есебі жіберілмеді: ${reportError}`,en:` Teacher report failed: ${reportError}`,ar:` تعذر إرسال تقرير الأستاذ: ${reportError}`}[currentLang]:reportSent?{ru:" Итоговый отчёт преподавателю отправлен.",kk:" Оқытушыға қорытынды есеп жіберілді.",en:" Teacher summary sent.",ar:" تم إرسال تقرير الأستاذ."}[currentLang]:"";
+      toast(`${L("invitationsSent")}: ${sent} ${L("ofWord")} ${rows.length}.${reportText}`);
       return true
     }
     async function sendInvitations(testId){
@@ -638,7 +645,7 @@
       const ids=Array.isArray(item.question_ids)?item.question_ids:[],answerText=(q,keys)=>normalizeAnswers(keys||[]).map(k=>`${k}. ${q.options?.[k]||""}`).join("; ")||"—";
       const details=ids.map((id,i)=>{const q=map.get(id);if(!q)return"";const selected=item.answers?.[id]||[],good=JSON.stringify(normalizeAnswers(selected))===JSON.stringify(normalizeAnswers(q.correct_answers));return `${i+1}. ${q.question_text}\n${L("your")}: ${answerText(q,selected)}\n${L("correct")}: ${answerText(q,q.correct_answers)}${!good&&q.explanation?`\n${L("explanation")}: ${q.explanation}`:""}`}).filter(Boolean).join("\n\n");
       const link=studentTestLink(item.invitation.token),percent=item.max_score?Math.round(item.score/item.max_score*1000)/10:0,template=testMailTemplates[currentLang]?.result||DEFAULT_TEST_MAILS[currentLang].result,values={student_name:item.invitation.student_name,test_title:test.title,subject_name:test.assigned_subject_name||"—",seminar_number:test.seminar_number||"—",seminar_topic:test.topic||"—",group_name:test.assigned_group_name||"—",course:test.assigned_course||"—",score:item.score,max_score:item.max_score,percent,result_details:details,result_link:link,button_text:{ru:"Посмотреть результат",kk:"Нәтижені көру",en:"View result",ar:"عرض النتيجة"}[currentLang]},subject=fillMailTemplate(template.subject,values),message=fillMailTemplate(template.text,values),messageHtml=normalizeTestEmailFont(`${fillMailTemplate(template.html,values)}${resultLinkBlock(link)}`);
-      await sendStudentTestEmail(config,{email:item.invitation.student_email,name:item.invitation.student_name},subject,message,messageHtml,values);if(!quiet)toast(L("mailSent"));return true
+      await sendStudentTestEmail(config,{email:item.invitation.student_email,name:item.invitation.student_name},subject,message,messageHtml,values);markJournalTestMailStatus(test,String(item.invitation.student_id||""),"sent");if(!quiet)toast(L("mailSent"));return true
     }
     async function sendAllResults(){
       const test=tests.find(t=>t.id===$("resultTestSelect").value),ready=currentResults.map((item,index)=>({item,index})).filter(x=>x.item.status==="submitted");
@@ -653,8 +660,9 @@
       let sent=0,failed=0;const sentRows=[],failedRows=[];
       for(let i=0;i<ready.length;i++){const recipient=ready[i].item.invitation;button.textContent=labels.sending(i+1,ready.length);try{await sendResultEmail(ready[i].index,{quiet:true,questionRows});sent++;sentRows.push({name:recipient.student_name,email:recipient.student_email})}catch(error){failed++;failedRows.push({name:recipient.student_name,email:recipient.student_email,error:String(error?.message||error)});console.error("Result email",error)}if(i<ready.length-1)await new Promise(resolve=>setTimeout(resolve,1100))}
       if(config.teacherCopyEnabled!==false&&config.teacherCopyEmail)await new Promise(resolve=>setTimeout(resolve,1100));
-      try{await sendTeacherDeliverySummary(config,test,"result",sentRows,failedRows)}catch(error){console.error("Teacher delivery summary",error)}
-      button.textContent=labels.button;button.disabled=false;toast(labels.done(sent,failed))
+      let reportSent=false,reportError="";try{await sendTeacherDeliverySummary(config,test,"result",sentRows,failedRows);reportSent=config.teacherCopyEnabled!==false&&Boolean(config.teacherCopyEmail)}catch(error){reportError=String(error?.message||error);console.error("Teacher delivery summary",error)}
+      const reportText=reportError?{ru:` Отчёт преподавателю не отправлен: ${reportError}`,kk:` Оқытушы есебі жіберілмеді: ${reportError}`,en:` Teacher report failed: ${reportError}`,ar:` تعذر إرسال تقرير الأستاذ: ${reportError}`}[currentLang]:reportSent?{ru:" Итоговый отчёт преподавателю отправлен.",kk:" Оқытушыға қорытынды есеп жіберілді.",en:" Teacher summary sent.",ar:" تم إرسال تقرير الأستاذ."}[currentLang]:"";
+      button.textContent=labels.button;button.disabled=false;toast(`${labels.done(sent,failed)}${reportText}`)
     }
     async function loadResults(){
       const testId=$("resultTestSelect").value;if(!testId)return;

@@ -58,9 +58,16 @@ create table if not exists public.test_invitations (
   student_email text not null,
   token uuid not null unique default gen_random_uuid(),
   sent_at timestamptz,
-  created_at timestamptz not null default now(),
-  unique(test_id, student_email)
+  created_at timestamptz not null default now()
 );
+
+-- Beta 21: назначение определяется студентом, а не email.
+-- Это позволяет нескольким студентам временно использовать один адрес почты.
+alter table public.test_invitations
+  drop constraint if exists test_invitations_test_id_student_email_key;
+
+create index if not exists test_invitations_test_student_idx
+  on public.test_invitations(test_id,student_id);
 
 create table if not exists public.test_attempts (
   id uuid primary key default gen_random_uuid(),

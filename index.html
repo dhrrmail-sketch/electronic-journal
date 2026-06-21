@@ -370,7 +370,7 @@ Content: {{message}}</span>
   <div class="toast" id="toast"></div>
 
   <script>
-    const APP_VERSION="2.0.0-beta.25",FINAL_MAX=100,STORAGE_KEY="teacher-journal-v2",DEFAULT_GROUP="group-default";
+    const APP_VERSION="2.0.0-beta.26",FINAL_MAX=100,STORAGE_KEY="teacher-journal-v2",DEFAULT_GROUP="group-default";
     const CLOUD_CONFIG_KEY="teacher-journal-cloud-config-v1",CLOUD_SESSION_KEY="teacher-journal-cloud-session-v1",LOCAL_UPDATED_KEY="teacher-journal-local-updated-v1",LAST_SYNC_KEY="teacher-journal-last-sync-v1";
     const now=new Date(),localToday=new Date(now-now.getTimezoneOffset()*60000).toISOString().slice(0,10);
     const seed={meta:{subject:""},criteria:[{id:"section",name:"Секционный ответ",max:40},{id:"individual",name:"Индивидуальный ответ",max:30},{id:"srs",name:"СРС",max:100},{id:"srsp",name:"СРСП",max:100}],groups:[{id:DEFAULT_GROUP,name:"Основная группа",course:""}],selectedGroupId:DEFAULT_GROUP,students:[
@@ -905,8 +905,25 @@ with check (auth.uid() = user_id);`;
     function renderMailQueue(){const done=mailQueue.filter(x=>x.opened).length;$("mailQueueInfo").textContent=`Подготовлено: ${mailQueue.length}. Открыто: ${done}. Осталось: ${mailQueue.length-done}.`;$("mailQueueList").innerHTML=mailQueue.map((item,i)=>`<div class="mail-queue-item"><div><b>${esc(item.student.lastName)} ${esc(item.student.firstName)}</b><small>${esc(item.student.email)}</small></div><div class="queue-status ${item.opened?"done":""}">${item.opened?"Открыто":i===mailQueueIndex?"Следующее":"Ожидает"}</div></div>`).join("");$("nextMailBtn").disabled=mailQueueIndex>=mailQueue.length;$("nextMailBtn").textContent=mailQueueIndex>=mailQueue.length?"Все письма открыты":mailQueueIndex===0?"Открыть первое письмо":"Открыть следующее письмо"}
     const wait=ms=>new Promise(resolve=>setTimeout(resolve,ms));
     async function sendEmailJs(student,subject,text){
-      const response=await fetch("https://api.emailjs.com/api/v1.0/email/send",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({service_id:emailjsConfig.serviceId,template_id:emailjsConfig.templateId,user_id:emailjsConfig.publicKey,template_params:{to_email:student.email,to_name:`${student.firstName} ${student.lastName}`,subject,message:text,group_name:currentGroup().name}})});
+      const config=(()=>{try{return JSON.parse(localStorage.getItem(EMAILJS_KEY))||emailjsConfig}catch{return emailjsConfig}})();emailjsConfig=config;
+      const response=await fetch("https://api.emailjs.com/api/v1.0/email/send",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({service_id:config.serviceId,template_id:config.templateId,user_id:config.publicKey,template_params:{to_email:student.email,to_name:`${student.firstName} ${student.lastName}`,subject,message:text,group_name:currentGroup().name}})});
       if(!response.ok)throw new Error((await response.text())||`HTTP ${response.status}`);
+    }
+    function setStudentMailStatus(studentId,status){
+      state.grades[dateInput.value]||={};state.grades[dateInput.value][studentId]||=blank();state.grades[dateInput.value][studentId].mailStatus=status;
+      const subject=activeSubject();if(subject)subject.grades=state.grades
+    }
+    async function sendGradeDeliverySummary(kind,sentRows,failedRows,context){
+      const config=(()=>{try{return JSON.parse(localStorage.getItem(EMAILJS_KEY))||emailjsConfig}catch{return emailjsConfig}})();
+      if(config.teacherCopyEnabled===false||!config.teacherCopyEmail||!config.serviceId||!config.templateId||!config.publicKey)return false;
+      const labels={
+        ru:{daily:"Отчёт о рассылке оценок",weekly:"Отчёт о недельной рассылке",sent:"Успешно отправлено",failed:"Ошибки",recipients:"Получатели"},
+        kk:{daily:"Бағаларды жіберу есебі",weekly:"Апталық хаттарды жіберу есебі",sent:"Сәтті жіберілді",failed:"Қателер",recipients:"Алушылар"},
+        en:{daily:"Grade email delivery report",weekly:"Weekly email delivery report",sent:"Sent successfully",failed:"Errors",recipients:"Recipients"},
+        ar:{daily:"تقرير إرسال الدرجات",weekly:"تقرير الإرسال الأسبوعي",sent:"تم الإرسال بنجاح",failed:"الأخطاء",recipients:"المستلمون"}
+      }[currentLang],title=kind==="weekly"?labels.weekly:labels.daily,recipients=sentRows.map(x=>`${x.name} <${x.email}>`).join("\n")||"—",errors=failedRows.map(x=>`${x.name} <${x.email}> — ${x.error}`).join("\n")||"—",subject=`${title}: ${state.meta.subject||"—"}`,message=`${title}\n\n${state.meta.subject||"—"}\n${context}\n${labels.sent}: ${sentRows.length}\n${labels.failed}: ${failedRows.length}\n\n${labels.recipients}:\n${recipients}\n\n${labels.failed}:\n${errors}`;
+      const response=await fetch("https://api.emailjs.com/api/v1.0/email/send",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({service_id:config.serviceId,template_id:config.templateId,user_id:config.publicKey,template_params:{to_email:config.teacherCopyEmail,to_name:config.teacherCopyName||"Еркін ұстаз",subject,message,group_name:currentGroup().name}})});
+      if(!response.ok)throw new Error((await response.text())||`HTTP ${response.status}`);return true
     }
     function saturdayDeadline(dateValue){
       const date=new Date(`${dateValue}T12:00:00`),days=(6-date.getDay()+7)%7;date.setDate(date.getDate()+days);
@@ -925,21 +942,23 @@ with check (auth.uid() = user_id);`;
       await sendEmailJs(student,mail.subject,mail.text);r.attendanceAlertKey=key;r.attendanceAlertSentAt=new Date().toISOString();r.mailStatus="sent";save();render();notify({ru:`Предупреждение отправлено: ${student.firstName}`,kk:`Ескерту жіберілді: ${student.firstName}`,en:`Warning sent: ${student.firstName}`,ar:`تم إرسال التنبيه: ${student.firstName}`}[currentLang])
     }
     async function emailAll(){
+      try{emailjsConfig=JSON.parse(localStorage.getItem(EMAILJS_KEY))||emailjsConfig}catch{}
       const students=groupStudents().filter(s=>s.email);
       if(!students.length)return notify("В выбранной группе нет email-адресов");
       if(!emailjsConfig.serviceId||!emailjsConfig.templateId||!emailjsConfig.publicKey){openEmailGuide();$("emailjsStatus").textContent="Сначала заполните и сохраните три идентификатора.";return}
       if(!confirm(`Отправить ${students.length} отдельных персональных писем студентам группы «${currentGroup().name}»?`))return;
       const button=$("mailAllBtn");button.disabled=true;
-      let sent=0,failed=0;
+      let sent=0,failed=0;const sentRows=[],failedRows=[];
       for(let i=0;i<students.length;i++){
         const s=students[i];button.textContent=`Отправка ${i+1} из ${students.length}...`;
-        try{await sendEmailJs(s,copy[currentLang].dailySubject(dateLabel(dateInput.value)),personalText(s));ensureRecord(s.id).mailStatus="sent";sent++}
-        catch(error){ensureRecord(s.id).mailStatus="not_sent";failed++;console.error(`EmailJS: ${s.email}`,error)}
-        save();render();
+        try{await sendEmailJs(s,copy[currentLang].dailySubject(dateLabel(dateInput.value)),personalText(s));setStudentMailStatus(s.id,"sent");sent++;sentRows.push({name:`${s.lastName} ${s.firstName}`,email:s.email})}
+        catch(error){setStudentMailStatus(s.id,"not_sent");failed++;failedRows.push({name:`${s.lastName} ${s.firstName}`,email:s.email,error:String(error?.message||error)});console.error(`EmailJS: ${s.email}`,error)}
         if(i<students.length-1)await wait(1100);
       }
+      save();render();
+      let reportText="";try{if(await sendGradeDeliverySummary("daily",sentRows,failedRows,`${currentGroup().name} · ${dateLabel(dateInput.value)}`))reportText={ru:" Итоговый отчёт преподавателю отправлен.",kk:" Оқытушыға қорытынды есеп жіберілді.",en:" Teacher summary sent.",ar:" تم إرسال تقرير الأستاذ."}[currentLang]}catch(error){reportText={ru:` Отчёт преподавателю не отправлен: ${error.message}`,kk:` Оқытушы есебі жіберілмеді: ${error.message}`,en:` Teacher report failed: ${error.message}`,ar:` تعذر إرسال تقرير الأستاذ: ${error.message}`}[currentLang]}
       button.disabled=false;button.textContent="✉ Отправить оценки всем";
-      notify(failed?copy[currentLang].sentErrors(sent,failed):copy[currentLang].sentAll(sent));
+      notify(`${failed?copy[currentLang].sentErrors(sent,failed):copy[currentLang].sentAll(sent)}${reportText}`);
     }
     function openNextMail(){const item=mailQueue[mailQueueIndex];if(!item)return;item.opened=true;ensureRecord(item.student.id).mailStatus="sent";mailQueueIndex++;save();render();renderMailQueue();window.location.href=`mailto:${encodeURIComponent(item.student.email)}?subject=${encodeURIComponent(item.subject)}&body=${encodeURIComponent(item.text)}`}
     function isoWeekValue(date){const d=new Date(Date.UTC(date.getFullYear(),date.getMonth(),date.getDate())),day=d.getUTCDay()||7;d.setUTCDate(d.getUTCDate()+4-day);const yearStart=new Date(Date.UTC(d.getUTCFullYear(),0,1)),week=Math.ceil((((d-yearStart)/86400000)+1)/7);return `${d.getUTCFullYear()}-W${String(week).padStart(2,"0")}`}
@@ -953,19 +972,22 @@ with check (auth.uid() = user_id);`;
     function buildWeekly(){const week=$("weekInput").value;if(!week)return notify("Выберите неделю");const [start,end]=weekRange(week),students=weeklyCandidates();weeklyQueue=students.map(s=>({student:s,subject:copy[currentLang].weeklySubject(shortDate(start),shortDate(end)),text:weeklyText(s,start,end)}));state.weeklyMail[week]||={};students.forEach(s=>state.weeklyMail[week][s.id]||="prepared");save();$("openAllWeeklyBtn").disabled=!weeklyQueue.length;$("weeklyList").innerHTML=weeklyQueue.length?`<div class="weekly-summary">${weeklyQueue.length} · ${dateLabel(start)} — ${dateLabel(end)}</div>`+weeklyQueue.map((item,i)=>{const g=state.groups.find(x=>x.id===item.student.groupId),status=state.weeklyMail[week][item.student.id];return `<div class="weekly-item"><div><b>${esc(item.student.lastName)} ${esc(item.student.firstName)}</b><small>${esc(g?.name||"")} · ${esc(item.student.email)}</small></div><span>${mailLabel(status==="sent"?"sent":"not_sent")}</span><button class="btn btn-soft weekly-one" data-index="${i}">✉</button></div>`}).join(""):`<div class="weekly-summary">—</div>`}
     function openWeeklyItem(index){const item=weeklyQueue[index],week=$("weekInput").value;if(!item)return;state.weeklyMail[week]||={};state.weeklyMail[week][item.student.id]="opened";save();window.location.href=`mailto:${encodeURIComponent(item.student.email)}?subject=${encodeURIComponent(item.subject)}&body=${encodeURIComponent(item.text)}`}
     async function openAllWeekly(){
+      try{emailjsConfig=JSON.parse(localStorage.getItem(EMAILJS_KEY))||emailjsConfig}catch{}
       if(!weeklyQueue.length)return;
       if(!emailjsConfig.serviceId||!emailjsConfig.templateId||!emailjsConfig.publicKey){openEmailGuide();$("emailjsStatus").textContent="Сначала настройте EmailJS для автоматической недельной рассылки.";return}
       if(!confirm(`Отправить ${weeklyQueue.length} отдельных недельных отчётов?`))return;
       const button=$("openAllWeeklyBtn"),week=$("weekInput").value;button.disabled=true;
-      let sent=0,failed=0;state.weeklyMail[week]||={};
+      let sent=0,failed=0;const sentRows=[],failedRows=[];state.weeklyMail[week]||={};
       for(let i=0;i<weeklyQueue.length;i++){
         const item=weeklyQueue[i];button.textContent=`Отправка ${i+1} из ${weeklyQueue.length}...`;
-        try{await sendEmailJs(item.student,item.subject,item.text);state.weeklyMail[week][item.student.id]="sent";sent++}
-        catch(error){state.weeklyMail[week][item.student.id]="error";failed++;console.error(`EmailJS: ${item.student.email}`,error)}
-        save();if(i<weeklyQueue.length-1)await wait(1100);
+        try{await sendEmailJs(item.student,item.subject,item.text);state.weeklyMail[week][item.student.id]="sent";sent++;sentRows.push({name:`${item.student.lastName} ${item.student.firstName}`,email:item.student.email})}
+        catch(error){state.weeklyMail[week][item.student.id]="error";failed++;failedRows.push({name:`${item.student.lastName} ${item.student.firstName}`,email:item.student.email,error:String(error?.message||error)});console.error(`EmailJS: ${item.student.email}`,error)}
+        if(i<weeklyQueue.length-1)await wait(1100);
       }
+      save();
+      let reportText="";try{if(await sendGradeDeliverySummary("weekly",sentRows,failedRows,week))reportText={ru:" Итоговый отчёт преподавателю отправлен.",kk:" Оқытушыға қорытынды есеп жіберілді.",en:" Teacher summary sent.",ar:" تم إرسال تقرير الأستاذ."}[currentLang]}catch(error){reportText={ru:` Отчёт преподавателю не отправлен: ${error.message}`,kk:` Оқытушы есебі жіберілмеді: ${error.message}`,en:` Teacher report failed: ${error.message}`,ar:` تعذر إرسال تقرير الأستاذ: ${error.message}`}[currentLang]}
       button.disabled=false;button.textContent="Отправить все автоматически";buildWeekly();
-      notify(failed?`Недельных отчётов отправлено: ${sent}. Ошибок: ${failed}.`:`Все ${sent} недельных отчётов отправлены.`);
+      notify(`${failed?`Недельных отчётов отправлено: ${sent}. Ошибок: ${failed}.`:`Все ${sent} недельных отчётов отправлены.`}${reportText}`);
     }
     body.addEventListener("click",e=>{const b=e.target.closest("button");if(!b)return;const id=b.closest("tr").dataset.id,s=state.students.find(x=>x.id===id);if(b.classList.contains("profile"))openStudentProfile(s);if(b.classList.contains("email"))emailStudent(s);if(b.classList.contains("edit"))openStudent(s);if(b.classList.contains("delete")&&confirm(`Удалить студента ${s.lastName} ${s.firstName}?`)){state.students=state.students.filter(x=>x.id!==id);Object.values(state.grades).forEach(d=>delete d[id]);save();render()}});
     $("studentForm").addEventListener("submit",e=>{e.preventDefault();if(!e.currentTarget.reportValidity())return;const id=$("editId").value,s={id:id||crypto.randomUUID(),groupId:$("studentGroup").value,lastName:$("lastName").value.trim(),firstName:$("firstName").value.trim(),email:$("email").value.trim(),phone:$("phone").value.trim(),note:$("studentNote").value.trim(),location:$("studentLocation").value.trim(),occupation:$("studentOccupation").value.trim(),sector:$("studentSector").value,gender:$("studentGender").value};state.students=id?state.students.map(x=>x.id===id?s:x):[...state.students,s];save();studentDialog.close();render()});

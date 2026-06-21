@@ -1,5 +1,5 @@
 (() => {
-const TEST_BETA_VERSION = "2.0.0-beta.26";
+const TEST_BETA_VERSION = "2.0.0-beta.22";
 const LANG_KEY = "teacher-journal-language";
 const CLOUD_CONFIG_KEY = "teacher-journal-cloud-config-v1";
 const CLOUD_SESSION_KEY = "teacher-journal-cloud-session-v1";

@@ -1,4 +1,4 @@
--- Онлайн-викторина Beta 1
+-- Онлайн-викторина Beta 2
 -- Выполните в том же проекте Supabase: SQL Editor → New query → Run.
 
 create extension if not exists pgcrypto;
@@ -16,6 +16,12 @@ create table if not exists public.quiz_sets (
   topic text default '',
   seconds_per_question integer not null default 20 check (seconds_per_question between 5 and 300),
   speed_bonus boolean not null default true,
+  auto_advance boolean not null default true,
+  reveal_seconds integer not null default 5 check (reveal_seconds between 1 and 60),
+  leaderboard_mode text not null default 'after_question' check (leaderboard_mode in ('after_answer','after_question','final')),
+  total_points integer not null default 100 check (total_points between 1 and 100000),
+  source_question_count integer not null default 0,
+  selected_question_count integer not null default 0,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
@@ -40,9 +46,19 @@ create table if not exists public.quiz_rooms (
   current_position integer not null default 0,
   question_started_at timestamptz,
   question_ends_at timestamptz,
+  reveal_ends_at timestamptz,
   created_at timestamptz not null default now(),
   finished_at timestamptz
 );
+
+-- Эти команды безопасно обновляют уже созданные таблицы.
+alter table public.quiz_sets add column if not exists auto_advance boolean not null default true;
+alter table public.quiz_sets add column if not exists reveal_seconds integer not null default 5;
+alter table public.quiz_sets add column if not exists leaderboard_mode text not null default 'after_question';
+alter table public.quiz_sets add column if not exists total_points integer not null default 100;
+alter table public.quiz_sets add column if not exists source_question_count integer not null default 0;
+alter table public.quiz_sets add column if not exists selected_question_count integer not null default 0;
+alter table public.quiz_rooms add column if not exists reveal_ends_at timestamptz;
 
 create table if not exists public.quiz_players (
   id uuid primary key default gen_random_uuid(),
@@ -175,7 +191,8 @@ begin
   end if;
   return jsonb_build_object(
     'room_id',r.id,'quiz_title',s.title,'topic',s.topic,'status',r.status,
-    'position',r.current_position,'question_ends_at',r.question_ends_at,
+    'position',r.current_position,'question_ends_at',r.question_ends_at,'reveal_ends_at',r.reveal_ends_at,
+    'leaderboard_mode',s.leaderboard_mode,
     'player_name',p.player_name,'my_points',my_points,'answered',answered,
     'answer_count',answer_count,'player_count',total_players,
     'question',case when q.id is null then null else jsonb_build_object(
@@ -183,7 +200,9 @@ begin
       'correct',case when r.status in ('reveal','finished') then q.correct_answers else null end,
       'explanation',case when r.status in ('reveal','finished') then q.explanation else '' end
     ) end,
-    'leaders',case when r.status in ('reveal','finished') then (
+    'leaders',case when r.status='finished'
+      or (s.leaderboard_mode='after_question' and r.status='reveal')
+      or (s.leaderboard_mode='after_answer' and r.status in ('question','reveal')) then (
       select coalesce(jsonb_agg(jsonb_build_object('name',x.player_name,'points',x.points,'rank',x.rank)),'[]'::jsonb)
       from (
         select pl.player_name,coalesce(sum(a.awarded_points),0)::integer points,

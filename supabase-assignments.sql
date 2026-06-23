@@ -1,4 +1,4 @@
--- Кабинет преподавателя: задания, аудиоотработка и уведомления — Beta 48
+-- Кабинет преподавателя: задания, аудиоотработка и уведомления — Beta 49
 -- Выполните целиком один раз в том же проекте Supabase.
 
 create extension if not exists pgcrypto;
@@ -134,6 +134,7 @@ values(
     'audio/webm',
     'audio/ogg',
     'audio/mpeg',
+    'audio/aac',
     'audio/mp4',
     'audio/x-m4a',
     'audio/wav',
@@ -227,8 +228,8 @@ begin
   if a.status<>'published' then raise exception 'Приём работы закрыт'; end if;
   if p_file_size<1 or p_file_size>26214400 then raise exception 'Допустимый размер файла — до 25 МБ'; end if;
   if a.assignment_type='audio_retake' then
-    if lower(p_file_name) !~ '\.(webm|ogg|mp3|m4a|mp4|wav)$' then
-      raise exception 'Для аудиопересказа разрешены WEBM, OGG, MP3, M4A, MP4 и WAV';
+    if lower(p_file_name) !~ '\.(webm|ogg|mp3|aac|m4a|mp4|wav)$' then
+      raise exception 'Для аудиопересказа разрешены WEBM, OGG, MP3, AAC, M4A, MP4 и WAV';
     end if;
   elsif lower(p_file_name) !~ '\.(pdf|doc|docx)$' then
     raise exception 'Разрешены только PDF, DOC и DOCX';

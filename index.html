@@ -469,7 +469,7 @@ Content: {{{message_html}}}</div>
   <div class="toast" id="toast"></div>
 
   <script>
-    const APP_VERSION="2.0.0-beta.51",FINAL_MAX=100,STORAGE_KEY="teacher-journal-v2",DEFAULT_GROUP="group-default",FONT_KEY="teacher-journal-font-settings-v1",MATERIALS_BUCKET="learning-materials";
+    const APP_VERSION="2.0.0-beta.52",FINAL_MAX=100,STORAGE_KEY="teacher-journal-v2",DEFAULT_GROUP="group-default",FONT_KEY="teacher-journal-font-settings-v1",MATERIALS_BUCKET="learning-materials";
     const FONT_FAMILIES={system:'Inter,system-ui,-apple-system,"Segoe UI",sans-serif',arial:'Arial,sans-serif',georgia:'Georgia,"Times New Roman",serif',verdana:'Verdana,sans-serif',tahoma:'Tahoma,sans-serif',times:'"Times New Roman",Times,serif'};
     const DEFAULT_APPEARANCE={theme:"system",family:"system",interfaceSize:14,emailSize:16,studentNameSize:16,studentNameColor:"#172235",studentNameWeight:"bold",accent:"#3d72f4",density:"normal",buttonRadius:9,fieldRadius:9,cardRadius:15};
     let fontSettings=(()=>{try{return {...DEFAULT_APPEARANCE,...(JSON.parse(localStorage.getItem(FONT_KEY))||{})}}catch{return {...DEFAULT_APPEARANCE}}})();

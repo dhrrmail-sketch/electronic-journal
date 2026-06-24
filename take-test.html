@@ -25,7 +25,7 @@
   </style>
 </head>
 <body>
-  <header><select class="lang" id="languageSelect"><option value="kk">ҚАЗ</option><option value="ru">РУС</option><option value="en">ENG</option><option value="ar">عربي</option></select><b id="basmala">БИСМИЛЛАХИР-РАХМАНИР-РАХИМ</b><p id="headerSubtitle">Электронный тест • Еркін ұстаз</p></header>
+  <header><select class="lang" id="languageSelect"><option value="kk">ҚАЗ</option><option value="ru">РУС</option></select><b id="basmala">БИСМИЛЛАХИР-РАХМАНИР-РАХИМ</b><p id="headerSubtitle">Электронный тест • Еркін ұстаз</p></header>
   <main>
     <section class="card" id="landing">
       <h1 id="title">Загрузка теста…</h1><p id="topic"></p>
@@ -43,7 +43,7 @@
   <script src="./test-shared.js"></script>
   <script>
     const {$,api,toast,formatDateTime,normalizeAnswers,cloudReady,LANG_KEY,testLinkData}=TestBeta;
-    const linkData=testLinkData(),token=linkData.token;if(linkData.appearance)TestBeta.applyAppearance(linkData.appearance);let info=null,attempt=null,timerHandle=null,currentLang=linkData.lang||localStorage.getItem(LANG_KEY)||"ru";
+    const linkData=testLinkData(),token=linkData.token;if(linkData.appearance)TestBeta.applyAppearance(linkData.appearance);let info=null,attempt=null,timerHandle=null,currentLang=linkData.lang||localStorage.getItem(LANG_KEY)||"ru";if(!["ru","kk"].includes(currentLang))currentLang="ru";
     const TXT={
       ru:{subtitle:"Электронный тест • Еркін ұстаз",loading:"Загрузка теста…",start:"Начать тест",submit:"Отправить тест",result:"Ваш результат",minutes:"минут",until:"до",attempts:"попыток",draft:"Тест пока не опубликован.",opens:"Тест откроется",expired:"Срок прохождения теста истёк.",used:"Все попытки использованы.",ready:"Когда будете готовы, нажмите «Начать тест». После этого запустится таймер.",noToken:"В ссылке отсутствует персональный код.",noCloud:"В этой копии приложения не настроено облачное подключение.",unavailable:"Тест недоступен",confirmStart:"Начать тест? Таймер запустится сразу.",attempt:"Попытка",points:"балл.",timeOver:"Время истекло. Ответы больше не принимаются.",unanswered:"Не отвечено вопросов",sendAnyway:"Всё равно отправить тест?",confirmSend:"Отправить тест? После отправки ответы изменить нельзя.",of:"из",review:"Разбор ответов",right:"Верно",wrong:"Неверно",your:"Ваш ответ",none:"нет",correct:"Правильный ответ",later:"Правильные ответы будут доступны после дедлайна, если преподаватель разрешил их показ.",explanation:"Пояснение"},
       kk:{subtitle:"Электрондық тест • Еркін ұстаз",loading:"Тест жүктелуде…",start:"Тестті бастау",submit:"Тестті жіберу",result:"Сіздің нәтижеңіз",minutes:"минут",until:"дейін",attempts:"әрекет",draft:"Тест әлі жарияланбаған.",opens:"Тест ашылады:",expired:"Тест тапсыру мерзімі аяқталды.",used:"Барлық әрекет пайдаланылды.",ready:"Дайын болғанда «Тестті бастау» түймесін басыңыз. Содан кейін таймер іске қосылады.",noToken:"Сілтемеде жеке код жоқ.",noCloud:"Бұл қолданбада бұлттық байланыс бапталмаған.",unavailable:"Тест қолжетімсіз",confirmStart:"Тестті бастайсыз ба? Таймер бірден іске қосылады.",attempt:"Әрекет",points:"балл",timeOver:"Уақыт аяқталды. Жауаптар енді қабылданбайды.",unanswered:"Жауап берілмеген сұрақтар",sendAnyway:"Тестті бәрібір жіберу керек пе?",confirmSend:"Тестті жіберу керек пе? Жібергеннен кейін жауаптарды өзгертуге болмайды.",of:"ішінен",review:"Жауаптарды талдау",right:"Дұрыс",wrong:"Қате",your:"Сіздің жауабыңыз",none:"жоқ",correct:"Дұрыс жауап",later:"Оқытушы рұқсат етсе, дұрыс жауаптар соңғы мерзімнен кейін көрсетіледі.",explanation:"Түсіндірме"},

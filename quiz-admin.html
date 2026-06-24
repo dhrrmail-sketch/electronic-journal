@@ -12,7 +12,7 @@
 <body>
 <header>
   <div><h1 id="pageTitle">⚡ Викторина Beta</h1><p id="subtitle">Живая игра, рейтинг и перенос результатов в журнал</p></div>
-  <div class="actions"><select class="btn ghost" id="language"><option value="ru">Русский</option><option value="kk">Қазақша</option><option value="en">English</option><option value="ar">العربية</option></select><a class="btn ghost" href="./index.html">← Журнал</a><a class="btn soft" href="./supabase-quiz.sql" target="_blank">Подключение SQL</a></div>
+  <div class="actions"><select class="btn ghost" id="language"><option value="ru">Русский</option><option value="kk">Қазақша</option></select><a class="btn ghost" href="./index.html">← Журнал</a><a class="btn soft" href="./supabase-quiz.sql" target="_blank">Подключение SQL</a></div>
 </header>
 <main>
   <div class="notice" id="connection">Проверяю подключение…</div>
@@ -76,7 +76,7 @@
 <script src="./test-shared.js"></script>
 <script>
 const {$,api,toast,journalStudents,cloudReady,cloudSession,cloudConfig,esc,LANG_KEY,EMAILJS_KEY,appearanceSettings}=TestBeta;
-let questions=[],quizzes=[],rooms=[],room=null,roomTimer=null,currentLang=localStorage.getItem(LANG_KEY)||"ru",duplicateQuizId="",transitionBusy=false;
+let questions=[],quizzes=[],rooms=[],room=null,roomTimer=null,currentLang=localStorage.getItem(LANG_KEY)||"ru",duplicateQuizId="",transitionBusy=false;if(!["ru","kk"].includes(currentLang))currentLang="ru";
 const dict={
 ru:{connected:"Облако подключено.",need:"Сначала настройте облако и войдите через журнал.",saved:"Викторина сохранена.",created:"Комната создана.",first:"Запустить первый вопрос",next:"Следующий вопрос",waiting:"Ожидание участников",question:"Идёт вопрос",reveal:"Ответ показан",finished:"Викторина завершена",answers:"Ответили",none:"Пока ничего нет.",sent:"Приглашения отправлены",failed:"Не отправлены",copied:"Ссылка скопирована"},
 kk:{connected:"Бұлт қосылды.",need:"Алдымен журналда бұлтты баптап, жүйеге кіріңіз.",saved:"Викторина сақталды.",created:"Бөлме құрылды.",first:"Бірінші сұрақты бастау",next:"Келесі сұрақ",waiting:"Қатысушыларды күту",question:"Сұрақ жүріп жатыр",reveal:"Жауап көрсетілді",finished:"Викторина аяқталды",answers:"Жауап берді",none:"Әзірге дерек жоқ.",sent:"Шақырулар жіберілді",failed:"Жіберілмеді",copied:"Сілтеме көшірілді"},

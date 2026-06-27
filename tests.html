@@ -1,0 +1,147 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Автотесты — оценивание и синхронизация (Beta 66)</title>
+  <script src="./test-shared.js"></script>
+  <style>
+    :root{--blue:#1f5d4c;--ok:#1f7a5c;--bad:#b14a4a;--line:#e7dbc4;--bg:#f3ead9;--paper:#fdf9f1;--ink:#2c2317;--muted:#8a7b64}
+    *{box-sizing:border-box}
+    body{margin:0;font-family:"Onest",system-ui,sans-serif;background:var(--bg);color:var(--ink);padding:28px}
+    .wrap{max-width:900px;margin:0 auto}
+    h1{font-size:1.5rem;margin:0 0 4px}
+    .lead{color:var(--muted);margin:0 0 18px}
+    .summary{display:inline-flex;gap:14px;align-items:center;padding:12px 18px;border-radius:12px;background:var(--paper);border:1px solid var(--line);font-weight:800;margin-bottom:18px}
+    .summary .pass{color:var(--ok)}.summary .fail{color:var(--bad)}
+    .group{background:var(--paper);border:1px solid var(--line);border-radius:14px;padding:6px 16px 12px;margin-bottom:16px}
+    .group h2{font-size:1.05rem;margin:14px 0 8px}
+    .case{display:flex;gap:10px;align-items:baseline;padding:7px 0;border-top:1px solid color-mix(in srgb,var(--line) 60%,#fff);font-size:.95rem}
+    .case:first-of-type{border-top:0}
+    .tag{flex:0 0 auto;font-weight:800;font-size:.78rem;padding:2px 9px;border-radius:999px}
+    .tag.ok{background:#e3efe6;color:var(--ok)}.tag.bad{background:#f6e3e0;color:var(--bad)}
+    .desc{flex:1}
+    .exp{color:var(--muted);font-size:.85rem;white-space:pre-wrap}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>Автотесты Beta 66</h1>
+    <p class="lead">Оценивание ответов (нормализация, частичный балл) и решение конфликта синхронизации. Эталонные реализации совпадают с логикой SQL-функций <code>normalize_answer</code>, <code>score_answer</code> и клиентской <code>syncCloud</code>.</p>
+    <div class="summary" id="summary">Запуск…</div>
+    <div id="results"></div>
+  </div>
+
+  <script>
+  (function(){
+    "use strict";
+
+    // ---- Эталонные реализации (зеркало серверного SQL) ----
+
+    // normalize_answer(jsonb): убрать дубли и пустые, отсортировать.
+    function normalizeAnswer(arr){
+      const a = Array.isArray(arr) ? arr : [];
+      return [...new Set(a.map(String))].filter(v => v !== "").sort();
+    }
+    const arrEq = (a,b) => a.length===b.length && a.every((v,i)=>v===b[i]);
+    const round2 = x => Math.round((x + Number.EPSILON) * 100) / 100;
+
+    // score_answer(type, scoring, selected, correct, points)
+    function scoreAnswer(type, scoring, selected, correct, points){
+      const cor = normalizeAnswer(correct), sel = normalizeAnswer(selected);
+      if (type === "MULTIPLE" && scoring === "partial"){
+        const total = cor.length;
+        if (total === 0) return 0;
+        const corSet = new Set(cor);
+        let hits = 0, wrong = 0;
+        sel.forEach(v => corSet.has(v) ? hits++ : wrong++);
+        const share = Math.max(0, (hits - wrong) / total);
+        return round2(points * share);
+      }
+      return arrEq(sel, cor) ? points : 0;
+    }
+
+    // Решение синхронизации (зеркало syncCloud): pull | push | conflict | noop
+    function syncDecision({rowExists, localMs, remoteMs, seenMs, sameContent}){
+      if (rowExists && localMs > seenMs && remoteMs > seenMs && remoteMs !== localMs && !sameContent) return "conflict";
+      if (rowExists && remoteMs > localMs) return "pull";
+      if (!rowExists || localMs > remoteMs || !localMs) return "push";
+      return "noop";
+    }
+
+    // ---- Каркас тестов ----
+    const groups = [];
+    function suite(name, fn){ const cases=[]; const t={
+      eq(desc, actual, expected){ cases.push({desc, ok: JSON.stringify(actual)===JSON.stringify(expected), got: actual, exp: expected}); },
+      ok(desc, cond){ cases.push({desc, ok: !!cond, got: !!cond, exp: true}); }
+    }; fn(t); groups.push({name, cases}); }
+
+    // ---- 1. Нормализация ответов ----
+    suite("Нормализация набора ответов (normalize_answer)", t => {
+      t.eq("дубли и порядок убираются", normalizeAnswer(["B","A","A"]), ["A","B"]);
+      t.eq("пустые значения отбрасываются", normalizeAnswer(["","A"]), ["A"]);
+      t.eq("пустой массив остаётся пустым", normalizeAnswer([]), []);
+      t.eq("сортировка по возрастанию", normalizeAnswer(["C","A","B"]), ["A","B","C"]);
+      t.eq("клиентская normalizeAnswers совпадает по dedup+sort", TestBeta.normalizeAnswers(["B","A","A"]), ["A","B"]);
+    });
+
+    // ---- 2. Одиночные и «всё или ничего» ----
+    suite("Оценивание: одиночные и «всё или ничего»", t => {
+      t.eq("верный одиночный ответ даёт полный балл", scoreAnswer("SINGLE","all_or_nothing",["A"],["A"],5), 5);
+      t.eq("неверный одиночный ответ — ноль", scoreAnswer("SINGLE","all_or_nothing",["B"],["A"],5), 0);
+      t.eq("несколько ответов, порядок не важен", scoreAnswer("MULTIPLE","all_or_nothing",["B","A"],["A","B"],4), 4);
+      t.eq("неполный выбор без частичного режима — ноль", scoreAnswer("MULTIPLE","all_or_nothing",["A"],["A","B"],4), 0);
+      t.eq("лишний выбор — ноль", scoreAnswer("MULTIPLE","all_or_nothing",["A","B","C"],["A","B"],4), 0);
+    });
+
+    // ---- 3. Частичный балл ----
+    suite("Оценивание: частичный балл (partial)", t => {
+      t.eq("1 из 2 верных, без лишних — половина", scoreAnswer("MULTIPLE","partial",["A"],["A","B"],4), 2);
+      t.eq("2 из 2 верных — полный балл", scoreAnswer("MULTIPLE","partial",["A","B"],["A","B"],4), 4);
+      t.eq("1 верный + 1 лишний — ноль (штраф)", scoreAnswer("MULTIPLE","partial",["A","C"],["A","B"],4), 0);
+      t.eq("2 верных + 1 лишний из 2 — половина", scoreAnswer("MULTIPLE","partial",["A","B","C"],["A","B"],6), 3);
+      t.eq("дубль в выборе не накручивает балл", scoreAnswer("MULTIPLE","partial",["A","A"],["A","B"],4), 2);
+      t.eq("округление до 2 знаков (1 из 3)", scoreAnswer("MULTIPLE","partial",["A"],["A","B","C"],10), 3.33);
+      t.eq("балл не уходит в минус", scoreAnswer("MULTIPLE","partial",["C","D"],["A","B"],4), 0);
+    });
+
+    // ---- 4. Решение конфликта синхронизации ----
+    suite("Синхронизация: выбор действия (syncCloud)", t => {
+      t.eq("новое устройство без правок — забрать облако", syncDecision({rowExists:true,localMs:0,remoteMs:100,seenMs:0,sameContent:false}), "pull");
+      t.eq("локально новее, облако не менялось — отправить", syncDecision({rowExists:true,localMs:200,remoteMs:100,seenMs:100,sameContent:false}), "push");
+      t.eq("изменились обе стороны и расходятся — конфликт", syncDecision({rowExists:true,localMs:200,remoteMs:150,seenMs:100,sameContent:false}), "conflict");
+      t.eq("обе менялись, но содержимое одинаково — не конфликт", syncDecision({rowExists:true,localMs:200,remoteMs:150,seenMs:100,sameContent:true}), "push");
+      t.eq("изменилось только облако — забрать облако", syncDecision({rowExists:true,localMs:100,remoteMs:200,seenMs:100,sameContent:false}), "pull");
+      t.eq("записи в облаке нет — отправить", syncDecision({rowExists:false,localMs:100,remoteMs:0,seenMs:0,sameContent:false}), "push");
+      t.eq("ничего не менялось — ничего не делать", syncDecision({rowExists:true,localMs:100,remoteMs:100,seenMs:100,sameContent:false}), "noop");
+    });
+
+    // ---- Рендер ----
+    let total=0, passed=0;
+    const resultsEl = document.getElementById("results");
+    groups.forEach(g => {
+      const box = document.createElement("div"); box.className="group";
+      const h = document.createElement("h2"); h.textContent=g.name; box.appendChild(h);
+      g.cases.forEach(c => {
+        total++; if (c.ok) passed++;
+        const row = document.createElement("div"); row.className="case";
+        const tag = document.createElement("span"); tag.className="tag "+(c.ok?"ok":"bad"); tag.textContent=c.ok?"OK":"СБОЙ";
+        const desc = document.createElement("div"); desc.className="desc";
+        desc.textContent = c.desc;
+        if (!c.ok){
+          const exp = document.createElement("div"); exp.className="exp";
+          exp.textContent = `ожидалось ${JSON.stringify(c.exp)}, получено ${JSON.stringify(c.got)}`;
+          desc.appendChild(exp);
+        }
+        row.appendChild(tag); row.appendChild(desc); box.appendChild(row);
+      });
+      resultsEl.appendChild(box);
+    });
+    const sum = document.getElementById("summary");
+    const failed = total - passed;
+    sum.innerHTML = `<span class="pass">Пройдено: ${passed}</span><span class="fail">Сбоев: ${failed}</span><span>Всего: ${total}</span>`;
+    window.__testResults = {total, passed, failed, ok: failed===0};
+  })();
+  </script>
+</body>
+</html>

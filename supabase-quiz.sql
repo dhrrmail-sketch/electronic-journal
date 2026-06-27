@@ -1,7 +1,24 @@
--- Онлайн-викторина Beta 2
+-- Онлайн-викторина Beta 66
 -- Выполните в том же проекте Supabase: SQL Editor → New query → Run.
 
 create extension if not exists pgcrypto;
+
+-- Beta 66: канонизация набора ответов (убирает дубли и пустые, сортирует).
+-- Оценка правильности больше не зависит от порядка ответов, присланных клиентом.
+create or replace function public.normalize_answer(p jsonb)
+returns jsonb language sql immutable as $$
+  select coalesce(
+    (select jsonb_agg(value order by value)
+     from (
+       select distinct value
+       from jsonb_array_elements_text(
+         case when jsonb_typeof(coalesce(p,'[]'::jsonb))='array' then p else '[]'::jsonb end
+       )
+       where value <> ''
+     ) s),
+    '[]'::jsonb
+  );
+$$;
 
 create table if not exists public.quiz_sets (
   id uuid primary key default gen_random_uuid(),
@@ -59,6 +76,11 @@ alter table public.quiz_sets add column if not exists total_points integer not n
 alter table public.quiz_sets add column if not exists source_question_count integer not null default 0;
 alter table public.quiz_sets add column if not exists selected_question_count integer not null default 0;
 alter table public.quiz_rooms add column if not exists reveal_ends_at timestamptz;
+-- Beta 66: защита входа в комнату.
+-- join_closes_at — момент, после которого код больше не работает (короткоживущий код).
+-- lock_after_start — если включено, после старта новые участники войти не могут.
+alter table public.quiz_rooms add column if not exists join_closes_at timestamptz;
+alter table public.quiz_rooms add column if not exists lock_after_start boolean not null default false;
 
 create table if not exists public.quiz_players (
   id uuid primary key default gen_random_uuid(),
@@ -144,11 +166,17 @@ declare r public.quiz_rooms; p public.quiz_players;
 begin
   select * into r from public.quiz_rooms where code=trim(p_code) and status not in ('finished','closed');
   if r.id is null then raise exception 'Комната не найдена или уже закрыта'; end if;
+  -- Beta 66: проверка срока действия кода.
+  if r.join_closes_at is not null and now()>r.join_closes_at then raise exception 'Срок действия кода истек'; end if;
   if p_reconnect is not null then
     select * into p from public.quiz_players where room_id=r.id and reconnect_token=p_reconnect;
   end if;
   if p.id is null and coalesce(trim(p_student_id),'')<>'' then
     select * into p from public.quiz_players where room_id=r.id and student_id=trim(p_student_id);
+  end if;
+  -- Beta 66: вход закрыт после старта (но уже вошедшие могут переподключиться).
+  if p.id is null and r.lock_after_start and r.status<>'lobby' then
+    raise exception 'Вход закрыт: викторина уже началась';
   end if;
   if p.id is null then
     insert into public.quiz_players(room_id,student_id,player_name)
@@ -165,6 +193,9 @@ declare r public.quiz_rooms;
 begin
   select * into r from public.quiz_rooms where code=trim(p_code) and status not in ('finished','closed');
   if r.id is null then raise exception 'Комната не найдена или уже закрыта'; end if;
+  -- Beta 66: код просрочен или игра уже идет — список группы наружу не отдаем.
+  if r.join_closes_at is not null and now()>r.join_closes_at then raise exception 'Срок действия кода истек'; end if;
+  if r.status<>'lobby' then return '[]'::jsonb; end if;
   return (
     select coalesce(jsonb_agg(jsonb_build_object(
       'student_id',student_id,'name',player_name,'joined',active
@@ -226,7 +257,7 @@ begin
   select * into q from public.quiz_questions where id=p_question and quiz_id=r.quiz_id and position=r.current_position;
   if q.id is null then raise exception 'Вопрос не найден'; end if;
   select * into s from public.quiz_sets where id=r.quiz_id;
-  is_correct:=coalesce(p_answers,'[]'::jsonb)=q.correct_answers;
+  is_correct:=public.normalize_answer(p_answers)=public.normalize_answer(q.correct_answers);
   elapsed:=greatest(0,extract(epoch from (now()-r.question_started_at))*1000)::integer;
   if is_correct then
     earned:=q.points;

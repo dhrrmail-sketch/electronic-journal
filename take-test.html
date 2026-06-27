@@ -1,28 +1,38 @@
 <!doctype html>
 <html lang="ru">
 <head>
+<script>(function(){var P=["kz","sage","mist","rose"],k="app-palette-v1";function ap(){var v=localStorage.getItem(k);document.documentElement.dataset.palette=P.indexOf(v)>=0?v:"kz";}ap();window.addEventListener("storage",function(e){if(e.key===k)ap();});})();</script>
   <meta charset="utf-8">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com; img-src 'self' data: blob: https://*.supabase.co; media-src 'self' blob: https://*.supabase.co; connect-src 'self' https://*.supabase.co wss://*.supabase.co https://api.emailjs.com; frame-src https://*.supabase.co; object-src 'none'; base-uri 'self'; form-action 'self'">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>Прохождение теста</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,500;0,8..60,600;0,8..60,700;1,8..60,400&family=Onest:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <style>
-    :root{--navy:#152b4d;--blue:#3d72f4;--blue2:#eef3ff;--green:#178765;--green2:#e8f8f2;--red:#c84a4a;--ink:#172235;--muted:#6d788a;--line:#e2e8f0;--bg:#f3f6fb;--paper:#fff;--app-font:Inter,system-ui,"Segoe UI",sans-serif;--app-font-size:15px;--button-radius:9px;--field-radius:9px;--card-radius:15px}
-    html[data-theme="kk"]{--navy:#12433f;--blue:#16877c;--blue2:#e8f7f4;--green:#08755d;--green2:#e4f6ef;--bg:#f2f8f7}
-    html[data-theme="en"]{--navy:#39245f;--blue:#7650c7;--blue2:#f1ecfb;--green:#5b3fa1;--green2:#eee9f8;--bg:#f7f4fb}
+    :root{--navy:#143f33;--blue:#1f5d4c;--blue2:#ebf1e8;--green:#1f7a5c;--green2:#e3efe6;--red:#b14a4a;--ink:#2c2317;--muted:#8a7b64;--line:#e7dbc4;--bg:#f3ead9;--paper:#fdf9f1;--gold:#b08d2e;--app-font:"Onest",system-ui,"Segoe UI",sans-serif;--display-font:"Source Serif 4",Georgia,serif;--app-font-size:15px;--button-radius:9px;--field-radius:9px;--card-radius:15px}
+    html[data-theme="kk"]{--navy:#143f33;--blue:#16877c;--blue2:#e8f4ee;--green:#1f7a5c;--green2:#e3efe6;--bg:#f1edde}
+    html[data-theme="en"]{--navy:#2c3f2e;--blue:#5b7c4a;--blue2:#ecefe2;--green:#4a7c5b;--green2:#e6efe6;--bg:#f4f1e6}
     html[data-theme="ar"]{--navy:#4a321d;--blue:#a66c22;--blue2:#fbf1e3;--green:#7c6325;--green2:#f7f0df;--bg:#faf7f1}
     *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--app-font);font-size:var(--app-font-size);line-height:1.5}button{font:inherit}
-    header{padding:21px;text-align:center;color:#fff;background:var(--navy)}header b{font-size:19px;letter-spacing:.4px}header p{margin:3px 0 0;color:#d3dbea;font-size:12px}
+    header{padding:21px;text-align:center;color:#fff;background:var(--navy);border-bottom:2px solid var(--gold)}header b{font-size:19px;letter-spacing:.4px;font-family:var(--display-font)}header p{margin:3px 0 0;color:#cfe0d6;font-size:12px}h1,h2{font-family:var(--display-font)}
     main{max-width:850px;margin:22px auto;padding:0 14px}.card{padding:20px;background:#fff;border:1px solid var(--line);border-radius:15px;box-shadow:0 12px 32px rgba(20,35,65,.07)}.card[hidden]{display:none}
-    h1{margin:0 0 5px;font-size:25px}h2{margin:0 0 12px}.meta{display:flex;flex-wrap:wrap;gap:7px;margin:12px 0}.badge{padding:5px 9px;color:#315fc8;background:var(--blue2);border-radius:8px;font-size:12px;font-weight:700}.notice{padding:12px 14px;margin:12px 0;border-radius:10px;background:#fff4da;color:#785719}.notice.ok{background:var(--green2);color:var(--green)}
+    h1{margin:0 0 5px;font-size:25px}h2{margin:0 0 12px}.meta{display:flex;flex-wrap:wrap;gap:7px;margin:12px 0}.badge{padding:5px 9px;color:var(--blue);background:var(--blue2);border-radius:8px;font-size:12px;font-weight:700}.notice{padding:12px 14px;margin:12px 0;border-radius:10px;background:#fff4da;color:#785719}.notice.ok{background:var(--green2);color:var(--green)}
     .btn{padding:11px 16px;border:0;border-radius:9px;font-weight:750;cursor:pointer}.primary{color:#fff;background:var(--blue)}.danger{color:#fff;background:var(--red)}.btn:disabled{opacity:.5;cursor:not-allowed}
     .topline{position:sticky;top:0;z-index:3;display:flex;justify-content:space-between;align-items:center;gap:10px;margin:-20px -20px 15px;padding:12px 20px;background:#fff;border-bottom:1px solid var(--line);border-radius:15px 15px 0 0}.timer{font-size:22px;font-weight:850;color:var(--red)}
     .question{padding:16px;margin:13px 0;border:1px solid var(--line);border-radius:12px}.question h3{margin:0 0 10px;font-size:16px}.points{color:var(--muted);font-size:12px}.option{display:flex;align-items:flex-start;gap:9px;padding:9px;margin:6px 0;background:#f8fafe;border-radius:9px;cursor:pointer}.option input{margin-top:4px}.option:has(input:checked){background:var(--blue2);outline:1px solid #afc2f4}
-    .submit-row{display:flex;justify-content:flex-end;margin-top:15px}.score{text-align:center;padding:20px}.score strong{display:block;font-size:44px;color:var(--green)}.review{padding:13px;margin:10px 0;border:1px solid var(--line);border-radius:10px}.review.good{border-color:#9ed8c4;background:#f0fbf7}.review.bad{border-color:#edb4b4;background:#fff7f7}.correct{color:var(--green);font-weight:700}.wrong{color:var(--red);font-weight:700}
+    .submit-row{display:flex;flex-wrap:wrap;justify-content:flex-end;gap:8px;margin-top:15px}.score{text-align:center;padding:20px}.score strong{display:block;font-size:44px;color:var(--green)}.review{padding:13px;margin:10px 0;border:1px solid var(--line);border-radius:10px}.review.good{border-color:#9ed8c4;background:#f0fbf7}.review.bad{border-color:#edb4b4;background:#fff7f7}.correct{color:var(--green);font-weight:700}.wrong{color:var(--red);font-weight:700}
     .toast{position:fixed;right:20px;bottom:20px;max-width:430px;padding:12px 16px;color:#fff;background:#172235;border-radius:9px;opacity:0;transform:translateY(50px);transition:.2s;z-index:20}.toast.show{opacity:1;transform:none}.toast.error{background:#a93838}.lang{position:absolute;right:12px;top:12px;padding:7px;border:1px solid #ffffff66;border-radius:8px;color:#fff;background:#ffffff18}.lang option{color:#172235;background:#fff}
     .btn{border-radius:var(--button-radius)!important}.card,.question,.review,.notice{border-radius:var(--card-radius)!important}.option,.badge,.lang{border-radius:var(--field-radius)!important}
-    html[data-appearance="dark"]{--ink:#e7edf7;--muted:#aab5c6;--line:#344155;--paper:#172235;--bg:#0d1522;--navy:#0a1120;--blue2:#243450;--green2:#173b31}html[data-appearance="dark"] body,html[data-appearance="dark"] .card,html[data-appearance="dark"] .topline,html[data-appearance="dark"] .question{background-color:var(--paper);color:var(--ink)}html[data-appearance="dark"] .option{background:#121d2d}
+    html[data-appearance="dark"]{--ink:#ece3d2;--muted:#b4a890;--line:#3b3328;--paper:#241d12;--bg:#191309;--navy:#120d06;--blue2:#2c382e;--green2:#22311f}html[data-appearance="dark"] body,html[data-appearance="dark"] .card,html[data-appearance="dark"] .topline,html[data-appearance="dark"] .question{background-color:var(--paper);color:var(--ink)}html[data-appearance="dark"] .option{background:#1d160c}
     [dir="rtl"] .lang{right:auto;left:12px}[dir="rtl"] .option{text-align:right}
     @media(max-width:600px){body{font-size:16px}header{padding:18px 58px 18px 12px}header b{font-size:15px}main{margin:10px auto;padding:0 8px}.card{padding:14px;border-radius:12px}h1{font-size:21px}.topline{margin:-14px -14px 12px;padding:10px 14px}.timer{font-size:20px}.question{padding:13px;margin:10px 0}.option{min-height:48px;padding:11px}.option input{width:20px;height:20px}.submit-row{position:sticky;bottom:0;padding:10px 0;background:linear-gradient(transparent,#fff 25%)}.submit-row .btn,.card>.btn{width:100%;min-height:48px}.toast{left:8px;right:8px;bottom:8px;max-width:none}}
-  </style>
+  
+/* === Цветовые гаммы (общий ключ с журналом, по умолчанию Қазақстан) === */
+html[data-palette="kz"]:not([data-appearance="dark"]){--bg:#eef7f9!important;--paper:#fbfeff!important;--line:#cfe7ec!important;--ink:#14333a!important;--muted:#5f97a3!important;--navy:#0b7e92!important;--blue:#00afca!important;--blue2:#e0f3f6!important;--green:#0e9bb5!important;--green2:#e3f4f7!important;--gold:#fec50c!important}
+html[data-palette="sage"]:not([data-appearance="dark"]){--bg:#f3efe6!important;--paper:#fbf8f1!important;--line:#e6e0d2!important;--ink:#33352b!important;--muted:#8a8675!important;--navy:#4a5e46!important;--blue:#6f8a6a!important;--blue2:#eef1e7!important;--green:#5f7a58!important;--green2:#e8efe2!important;--gold:#c2913f!important}
+html[data-palette="mist"]:not([data-appearance="dark"]){--bg:#eef0f4!important;--paper:#fbfbfd!important;--line:#e2e5ed!important;--ink:#2f343d!important;--muted:#828a99!important;--navy:#3d4655!important;--blue:#6b7c98!important;--blue2:#eef0f5!important;--green:#5f7088!important;--green2:#e9ecf3!important;--gold:#b9923f!important}
+html[data-palette="rose"]:not([data-appearance="dark"]){--bg:#f5ece5!important;--paper:#fffaf6!important;--line:#eaddd4!important;--ink:#3a2e2a!important;--muted:#9a8478!important;--navy:#6e4d44!important;--blue:#b07f70!important;--blue2:#f6ebe5!important;--green:#9c7163!important;--green2:#f1e4dd!important;--gold:#c08a4a!important}
+
+</style>
 </head>
 <body>
   <header><select class="lang" id="languageSelect"><option value="kk">ҚАЗ</option><option value="ru">РУС</option></select><b id="basmala">БИСМИЛЛАХИР-РАХМАНИР-РАХИМ</b><p id="headerSubtitle">Электронный тест • Еркін ұстаз</p></header>
@@ -40,6 +50,7 @@
     <section class="card" id="resultCard" hidden><div class="score"><h2 id="resultHeading">Ваш результат</h2><strong id="score"></strong><p id="scoreDetail"></p></div><div id="review"></div></section>
   </main>
   <div class="toast" id="toast"></div>
+  <script src="./ui-confirm.js"></script>
   <script src="./test-shared.js"></script>
   <script>
     const {$,api,toast,formatDateTime,normalizeAnswers,cloudReady,LANG_KEY,testLinkData}=TestBeta;
@@ -69,7 +80,7 @@
     }
     function fail(text){$("title").textContent=T("unavailable");$("status").textContent=text;$("startBtn").disabled=true;toast(text,"error")}
     $("startBtn").onclick=async()=>{
-      if(!confirm(`${T("confirmStart")} ${info.duration_minutes} ${T("minutes")}.`))return;
+      if(!(await uiConfirm({message:`${T("confirmStart")} ${info.duration_minutes} ${T("minutes")}.`,danger:false})))return;
       $("startBtn").disabled=true;
       try{attempt=await rpc("start_test_attempt",{p_token:token});renderAttempt()}catch(err){fail(err.message)}
     };
@@ -87,14 +98,14 @@
       event.preventDefault();const answers={};
       attempt.questions.forEach(q=>{answers[q.id]=normalizeAnswers([...document.querySelectorAll(`[name="q-${q.id}"]:checked`)].map(x=>x.value))});
       const unanswered=attempt.questions.filter(q=>!answers[q.id].length).length;
-      if(unanswered&&!confirm(`${T("unanswered")}: ${unanswered}. ${T("sendAnyway")}`))return;
-      if(!confirm(T("confirmSend")))return;
+      if(unanswered&&!(await uiConfirm({message:`${T("unanswered")}: ${unanswered}. ${T("sendAnyway")}`})))return;
+      if(!(await uiConfirm({message:T("confirmSend"),danger:false})))return;
       const button=event.submitter;button.disabled=true;
       try{const result=await rpc("submit_test_attempt",{p_token:token,p_attempt_id:attempt.attempt_id,p_answers:answers});clearInterval(timerHandle);showResult(result)}catch(err){button.disabled=false;toast(err.message,"error")}
     };
     function showResult(result){
       $("landing").hidden=true;$("testCard").hidden=true;$("resultCard").hidden=false;$("resultHeading").textContent=T("result");$("score").textContent=`${result.percent}%`;$("scoreDetail").textContent=`${result.score} ${T("of")} ${result.max_score}`;
-      if(result.reveal&&result.review?.length){$("review").innerHTML=`<h2>${T("review")}</h2>`+result.review.map((r,i)=>{const good=JSON.stringify(normalizeAnswers(r.selected))===JSON.stringify(normalizeAnswers(r.correct));return `<article class="review ${good?"good":"bad"}"><b>${i+1}. ${escapeHtml(r.text)}</b><p class="${good?"correct":"wrong"}">${good?T("right"):T("wrong")} · ${T("your")}: ${escapeHtml((r.selected||[]).join(", ")||T("none"))}</p><p>${T("correct")}: <b>${escapeHtml((r.correct||[]).join(", "))}</b></p>${!good&&r.explanation?`<p><b>${T("explanation")}:</b> ${escapeHtml(r.explanation)}</p>`:""}</article>`}).join("")}else $("review").innerHTML=`<div class="notice">${T("later")}</div>`;
+      if(result.reveal&&result.review?.length){$("review").innerHTML=`<h2>${T("review")}</h2>`+result.review.map((r,i)=>{const good=JSON.stringify(normalizeAnswers(r.selected))===JSON.stringify(normalizeAnswers(r.correct));return `<article class="review ${good?"good":"bad"}"><b>${i+1}. ${escapeHtml(r.text)}</b><p class="${good?"correct":"wrong"}">${good?T("right"):T("wrong")} <span class="points">(${typeof r.earned==="number"?r.earned:(good?r.points:0)} / ${r.points??"—"} ${T("points")})</span> · ${T("your")}: ${escapeHtml((r.selected||[]).join(", ")||T("none"))}</p><p>${T("correct")}: <b>${escapeHtml((r.correct||[]).join(", "))}</b></p>${!good&&r.explanation?`<p><b>${T("explanation")}:</b> ${escapeHtml(r.explanation)}</p>`:""}</article>`}).join("")}else $("review").innerHTML=`<div class="notice">${T("later")}</div>`;
     }
     applyLang();loadInfo();
   </script>

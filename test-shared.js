@@ -1,5 +1,5 @@
 (() => {
-const TEST_BETA_VERSION = "2.0.0-beta.56";
+const TEST_BETA_VERSION = "2.0.0-beta.66";
 const LANG_KEY = "teacher-journal-language";
 const CLOUD_CONFIG_KEY = "teacher-journal-cloud-config-v1";
 const CLOUD_SESSION_KEY = "teacher-journal-cloud-session-v1";
@@ -8,8 +8,8 @@ const EMAILJS_KEY = "teacher-journal-emailjs-v1";
 const TEST_MAIL_TEMPLATES_KEY = "teacher-journal-test-mail-templates-v1";
 const TEST_PUBLIC_URL_KEY = "teacher-journal-test-public-url-v1";
 const FONT_KEY = "teacher-journal-font-settings-v1";
-const FONT_FAMILIES = {system:'Inter,system-ui,-apple-system,"Segoe UI",sans-serif',arial:'Arial,sans-serif',georgia:'Georgia,"Times New Roman",serif',verdana:'Verdana,sans-serif',tahoma:'Tahoma,sans-serif',times:'"Times New Roman",Times,serif'};
-const appearanceSettings = (() => { try { return {...{theme:"system",family:"system",interfaceSize:14,emailSize:16,accent:"#3d72f4",density:"normal",buttonRadius:9,fieldRadius:9,cardRadius:15},...(JSON.parse(localStorage.getItem(FONT_KEY))||{})}; } catch { return {theme:"system",family:"system",interfaceSize:14,emailSize:16,accent:"#3d72f4",density:"normal",buttonRadius:9,fieldRadius:9,cardRadius:15}; } })();
+const FONT_FAMILIES = {system:'"Onest",system-ui,-apple-system,"Segoe UI",sans-serif',arial:'Arial,sans-serif',georgia:'Georgia,"Times New Roman",serif',verdana:'Verdana,sans-serif',tahoma:'Tahoma,sans-serif',times:'"Times New Roman",Times,serif'};
+const appearanceSettings = (() => { try { return {...{theme:"light",family:"system",interfaceSize:14,emailSize:16,accent:"#1f5d4c",density:"normal",buttonRadius:9,fieldRadius:9,cardRadius:15},...(JSON.parse(localStorage.getItem(FONT_KEY))||{})}; } catch { return {theme:"light",family:"system",interfaceSize:14,emailSize:16,accent:"#1f5d4c",density:"normal",buttonRadius:9,fieldRadius:9,cardRadius:15}; } })();
 function mixHex(hex,amount=.88){const value=String(hex).replace("#",""),number=parseInt(value,16),mix=x=>Math.round(x+(255-x)*amount);return `#${[mix((number>>16)&255),mix((number>>8)&255),mix(number&255)].map(x=>x.toString(16).padStart(2,"0")).join("")}`}
 function applyAppearance(settings=appearanceSettings){const root=document.documentElement,dark=settings.theme==="system"?matchMedia("(prefers-color-scheme: dark)").matches:settings.theme==="dark";root.dataset.appearance=dark?"dark":"light";root.style.setProperty("--app-font",FONT_FAMILIES[settings.family]||FONT_FAMILIES.system);root.style.setProperty("--app-font-size",`${settings.interfaceSize}px`);root.style.setProperty("--blue",settings.accent);root.style.setProperty("--blue2",mixHex(settings.accent));root.style.setProperty("--button-radius",`${settings.buttonRadius}px`);root.style.setProperty("--field-radius",`${settings.fieldRadius}px`);root.style.setProperty("--card-radius",`${settings.cardRadius}px`);root.style.setProperty("--space-scale",({compact:.82,normal:1,comfortable:1.18}[settings.density]||1))}
 applyAppearance();

@@ -1,7 +1,49 @@
--- Модуль тестирования 2.0.0 Beta
+-- Модуль тестирования 2.0.0 Beta 66
 -- Выполните этот файл один раз: Supabase → SQL Editor → New query → Run.
 
 create extension if not exists pgcrypto;
+
+-- Beta 66: канонизация набора ответов (убирает дубли и пустые значения, сортирует).
+-- Нужна, чтобы оценка не зависела от порядка вариантов, присланных клиентом.
+create or replace function public.normalize_answer(p jsonb)
+returns jsonb language sql immutable as $$
+  select coalesce(
+    (select jsonb_agg(value order by value)
+     from (
+       select distinct value
+       from jsonb_array_elements_text(
+         case when jsonb_typeof(coalesce(p,'[]'::jsonb))='array' then p else '[]'::jsonb end
+       )
+       where value <> ''
+     ) s),
+    '[]'::jsonb
+  );
+$$;
+
+-- Beta 66: единый расчет балла за один вопрос — сервер единственный источник правды по оценке.
+-- Используется и при сдаче, и в разборе, чтобы цифры не расходились.
+create or replace function public.score_answer(p_type text, p_scoring text, p_selected jsonb, p_correct jsonb, p_points numeric)
+returns numeric language plpgsql immutable as $$
+declare
+  cor jsonb:=public.normalize_answer(p_correct);
+  sel jsonb:=public.normalize_answer(p_selected);
+  hits int; wrong int; total int; share numeric;
+begin
+  if p_type='MULTIPLE' and p_scoring='partial' then
+    -- Частичный балл = (верно выбранные - лишние) / число правильных, не ниже нуля.
+    total:=jsonb_array_length(cor);
+    if total=0 then return 0; end if;
+    select count(*) into hits from jsonb_array_elements_text(sel) s
+      where exists (select 1 from jsonb_array_elements_text(cor) c where c.value=s.value);
+    select count(*) into wrong from jsonb_array_elements_text(sel) s
+      where not exists (select 1 from jsonb_array_elements_text(cor) c where c.value=s.value);
+    share:=greatest(0,(hits-wrong)::numeric/total);
+    return round(p_points*share,2);
+  end if;
+  -- Одиночные и «все или ничего»: сравнение целиком по нормализованным множествам.
+  if sel=cor then return p_points; end if;
+  return 0;
+end $$;
 
 create table if not exists public.tests (
   id uuid primary key default gen_random_uuid(),
@@ -49,6 +91,13 @@ create table if not exists public.test_questions (
   points numeric(8,2) not null default 1 check (points > 0),
   explanation text default ''
 );
+
+-- Beta 66: режим начисления баллов за вопрос.
+-- 'all_or_nothing' — прежнее поведение: балл только за полностью верный ответ.
+-- 'partial' — частичный балл для вопросов с несколькими ответами (тип MULTIPLE).
+alter table public.test_questions
+  add column if not exists scoring text not null default 'all_or_nothing'
+  check (scoring in ('all_or_nothing','partial'));
 
 create table if not exists public.test_invitations (
   id uuid primary key default gen_random_uuid(),
@@ -237,14 +286,15 @@ begin
   loop
     maximum:=maximum+q.points;
     selected:=coalesce(p_answers->q.id::text,'[]'::jsonb);
-    if selected=q.correct_answers then earned:=earned+q.points; end if;
+    earned:=earned+public.score_answer(q.type,q.scoring,selected,q.correct_answers,q.points);
   end loop;
 
   reveal:=tst.reveal_mode='after_submit' or (tst.reveal_mode='after_deadline' and now()>=tst.deadline_at);
   if reveal then
     select coalesce(jsonb_agg(jsonb_build_object(
       'id',tq.id,'text',tq.question_text,'selected',coalesce(p_answers->tq.id::text,'[]'::jsonb),
-      'correct',tq.correct_answers,'explanation',tq.explanation
+      'correct',tq.correct_answers,'explanation',tq.explanation,'points',tq.points,
+      'earned',public.score_answer(tq.type,tq.scoring,coalesce(p_answers->tq.id::text,'[]'::jsonb),tq.correct_answers,tq.points)
     ) order by picked.ordinality),'[]'::jsonb) into review
     from jsonb_array_elements_text(att.question_ids) with ordinality picked(question_id,ordinality)
     join public.test_questions tq on tq.id=picked.question_id::uuid;
@@ -281,7 +331,8 @@ begin
   if reveal then
     select coalesce(jsonb_agg(jsonb_build_object(
       'id',tq.id,'text',tq.question_text,'selected',coalesce(att.answers->tq.id::text,'[]'::jsonb),
-      'correct',tq.correct_answers,'explanation',tq.explanation
+      'correct',tq.correct_answers,'explanation',tq.explanation,'points',tq.points,
+      'earned',public.score_answer(tq.type,tq.scoring,coalesce(att.answers->tq.id::text,'[]'::jsonb),tq.correct_answers,tq.points)
     ) order by picked.ordinality),'[]'::jsonb) into review
     from jsonb_array_elements_text(att.question_ids) with ordinality picked(question_id,ordinality)
     join public.test_questions tq on tq.id=picked.question_id::uuid;
